@@ -1,0 +1,79 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "VbYBp7hfr7vdfliXjcqwrxSsMVg=",
+			"path": "github.com/docopt/docopt-go",
+			"revision": "ee0de3bc6815ee19d4a46c7eb90f829db0e014b1",
+			"revisionTime": "2018-01-11T23:17:33Z"
+		},
+		{
+			"checksumSHA1": "PJkEV6Mt7MFGszBi2DCD4y4bWqo=",
+			"path": "github.com/kovetskiy/lorg",
+			"revision": "b2c9710020e731cb5a520e514edbfa3bacaa3cb3",
+			"revisionTime": "2017-12-21T12:27:03Z"
+		},
+		{
+			"checksumSHA1": "F4vVtBazK4fxatFQ0xvJrKLpXxo=",
+			"path": "github.com/mattn/go-shellwords",
+			"revision": "39dbbfa24bbc39559b61cae9b20b0e8db0e55525",
+			"revisionTime": "2018-02-01T00:47:52Z"
+		},
+		{
+			"checksumSHA1": "IOq2VDn/yyTeUSD0cR+RcSBCyAE=",
+			"path": "github.com/reconquest/barely",
+			"revision": "0f12e3bb2e13b4cdba2a41b604187163a861e087",
+			"revisionTime": "2016-07-29T07:45:50Z"
+		},
+		{
+			"checksumSHA1": "Sj9pCScw37fPqsv4ihQgq0hR9gY=",
+			"path": "github.com/reconquest/colorgful",
+			"revision": "80abe64d057a40d220b911427664ebcb12b9235b",
+			"revisionTime": "2016-07-05T06:50:25Z"
+		},
+		{
+			"checksumSHA1": "RQv5z2OLzrJOZsulJxvPxChZlN8=",
+			"path": "github.com/reconquest/hierr-go",
+			"revision": "7d09c0176fd2bb7fd71a4349d1253eef9edb2c5c",
+			"revisionTime": "2017-08-24T21:38:38Z"
+		},
+		{
+			"checksumSHA1": "oyf23Rqn0CvPD17SwR+5UWK0SCU=",
+			"path": "github.com/reconquest/lineflushwriter-go",
+			"revision": "086cd7d2a087b5686f08731941e5f1cf8121f52b",
+			"revisionTime": "2016-08-18T10:09:42Z"
+		},
+		{
+			"checksumSHA1": "GTSusTEcXS+e4bVB9GW8C9kXpSI=",
+			"path": "github.com/reconquest/loreley",
+			"revision": "2ab6b7470a54bfa9b5b0289f9b4e8fc4839838f7",
+			"revisionTime": "2016-07-08T08:05:00Z"
+		},
+		{
+			"checksumSHA1": "xCzx519wKKsO34ePkbFVcwT2XNM=",
+			"path": "github.com/reconquest/prefixwriter-go",
+			"revision": "f514fb348765ad236447ed42e43a9dadd2173d4d",
+			"revisionTime": "2016-08-18T10:08:56Z"
+		},
+		{
+			"checksumSHA1": "Qa81+aknC3p8dslfUIEud30fXmc=",
+			"path": "github.com/reconquest/ser-go",
+			"revision": "47f084a1e4a5433ac3d6ab6cfe8c1e30028a4d76",
+			"revisionTime": "2016-09-22T23:12:29Z"
+		},
+		{
+			"checksumSHA1": "+qHaqo0xD6gCdT8v+EN5gf4VJMs=",
+			"path": "github.com/zazab/zhash",
+			"revision": "ad45b89afe7af57319ca32f174e4dabeb00c44e4",
+			"revisionTime": "2017-04-03T03:24:15Z"
+		},
+		{
+			"checksumSHA1": "nZzkl0ruoZUK5M0A9YHj018Qyf4=",
+			"path": "github.com/zte-opensource/runcmd",
+			"revision": "c79725808625b56941e82575b06d75eed67cdeef",
+			"revisionTime": "2018-04-04T14:23:18Z"
+		}
+	],
+	"rootPath": "github.com/zte-opensource/ceph-boot"
+}

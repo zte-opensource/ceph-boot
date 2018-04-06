@@ -25,7 +25,7 @@ import (
 	"github.com/reconquest/barely"
 	"github.com/reconquest/hierr-go"
 	"github.com/reconquest/loreley"
-	"github.com/theairkit/runcmd"
+	"github.com/zte-opensource/runcmd"
 )
 
 var version = "[manual build]"

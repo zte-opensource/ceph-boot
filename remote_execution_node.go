@@ -7,7 +7,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/reconquest/hierr-go"
-	"github.com/theairkit/runcmd"
+	"github.com/zte-opensource/runcmd"
 )
 
 type remoteExecutionNode struct {

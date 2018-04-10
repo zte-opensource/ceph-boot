@@ -9,9 +9,9 @@ import (
 	"sync"
 	"syscall"
 
+	"github.com/reconquest/hierr-go"
 	"github.com/reconquest/lineflushwriter-go"
 	"github.com/reconquest/prefixwriter-go"
-	"github.com/reconquest/hierr-go"
 )
 
 func startArchiveReceivers(

@@ -216,6 +216,17 @@ Timeout options:
                            ends. [default: 10000]
 `
 
+type (
+	verbosity int
+)
+
+const (
+	verbosityQuiet verbosity = iota
+	verbosityNormal
+	verbosityDebug
+	verbosityTrace
+)
+
 const (
 	defaultSSHPort = 22
 
@@ -984,4 +995,25 @@ func makeTimeouts(args map[string]interface{}) (*runcmd.Timeouts, error) {
 		ReceiveTimeout:    time.Millisecond * time.Duration(receiveTimeout),
 		KeepAlive:         time.Millisecond * time.Duration(keepAlive),
 	}, nil
+}
+
+func parseVerbosity(args map[string]interface{}) verbosity {
+	var (
+		quiet = args["--quiet"].(bool)
+		level = args["--verbose"].(int)
+	)
+
+	if quiet {
+		return verbosityQuiet
+	}
+
+	if level == 1 {
+		return verbosityDebug
+	}
+
+	if level > 1 {
+		return verbosityTrace
+	}
+
+	return verbosityNormal
 }

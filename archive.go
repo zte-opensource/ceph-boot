@@ -14,6 +14,11 @@ import (
 	"github.com/reconquest/prefixwriter-go"
 )
 
+type file struct {
+	path string
+	size int
+}
+
 func startArchiveReceivers(
 	cluster *distributedLock,
 	rootDir string,

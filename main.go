@@ -700,7 +700,7 @@ func connectAndLock(
 		noLockFail,
 		noConnFail,
 		func(node *Node) {
-			heartbeat(heartbeatMilliseconds, node, canceler)
+			node.Heartbeat(heartbeatMilliseconds, canceler)
 		},
 	)
 	if err != nil {

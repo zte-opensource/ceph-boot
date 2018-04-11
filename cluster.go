@@ -6,9 +6,11 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"io"
 )
 
 type ClusterConfig struct {
+	addresses []address
 	lockFile string
 	noLock bool
 	noLockFail bool
@@ -33,10 +35,10 @@ func NewCluster(config *ClusterConfig) *Cluster {
 // if lock process has been failed.
 func (cluster *Cluster) Connect(
 	runnerFactory runnerFactory,
-	addresses []address,
 ) error {
 	config := cluster.config
 
+	addresses := config.addresses
 	lockFile := config.lockFile
 	noLock := config.noLock
 	noLockFail := config.noLockFail
@@ -149,6 +151,133 @@ func (cluster *Cluster) Connect(
 	return nil
 }
 
-func (cluster *Cluster) RunCommand() {
+func (cluster *Cluster) RunCommand(
+	command []string,
+	setupCallback func(*CommandSession),
+	serial bool,
+) (*remoteExecution, error) {
+	var (
+		stdins []io.WriteCloser
 
+		logLock    = &sync.Mutex{}
+		stdinsLock = &sync.Mutex{}
+		outputLock = &sync.Mutex{}
+	)
+
+	if !serial {
+		outputLock = nil
+	}
+
+	var (
+		status = &struct {
+			sync.Mutex
+
+			Phase   string
+			Total   int
+			Fails   int
+			Success int
+		}{
+			Phase: `exec`,
+			Total: len(cluster.nodes),
+		}
+	)
+
+	setStatus(status)
+
+	type nodeErr struct {
+		err  error
+		node *Node
+	}
+
+	errors := make(chan *nodeErr, 0)
+	for _, node := range cluster.nodes {
+		go func(node *Node) {
+			pool.run(func() {
+				tracef(
+					"%s",
+					hierr.Errorf(
+						command,
+						"%s starting command",
+						node.String(),
+					).Error(),
+				)
+
+				// create runcmd.CmdWorker to prepare running command on remote node
+				session, err := node.createCommandSession(
+					command,
+					logLock,
+					outputLock,
+				)
+				if err != nil {
+					errors <- &nodeErr{err, node}
+
+					status.Lock()
+					defer status.Unlock()
+
+					status.Total--
+					status.Fails++
+
+					return
+				}
+
+				if setupCallback != nil {
+					setupCallback(session)
+				}
+
+				session.command.SetStdout(session.stdout)
+				session.command.SetStderr(session.stderr)
+
+				// run command on remote node
+				err = session.command.Start()
+				if err != nil {
+					errors <- &nodeErr{
+						hierr.Errorf(
+							err,
+							`can't start remote command`,
+						),
+						node,
+					}
+
+					status.Lock()
+					defer status.Unlock()
+
+					status.Total--
+					status.Fails++
+
+					return
+				}
+
+				node.session = session
+
+				stdinsLock.Lock()
+				defer stdinsLock.Unlock()
+
+				stdins = append(stdins, session.stdin)
+
+				status.Lock()
+				defer status.Unlock()
+
+				status.Success++
+
+				errors <- nil
+			})
+		}(node)
+	}
+
+	for range cluster.nodes {
+		err := <-errors
+		if err != nil {
+			return nil, hierr.Errorf(
+				err.err,
+				`%s remote execution failed`,
+				err.node,
+			)
+		}
+	}
+
+	return &remoteExecution{
+		stdin: &multiWriteCloser{stdins},
+
+		nodes: cluster.nodes,
+	}, nil
 }

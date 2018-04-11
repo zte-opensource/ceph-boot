@@ -12,6 +12,7 @@ import (
 	"github.com/reconquest/lineflushwriter-go"
 	"github.com/reconquest/prefixwriter-go"
 	"github.com/zte-opensource/runcmd"
+	"os"
 )
 
 const (
@@ -284,4 +285,104 @@ func (node *Node) Connect(runnerFactory runnerFactory) error {
 	node.runner = runner
 
 	return nil
+}
+
+func (node *Node) createCommandSession(
+	command []string,
+	logLock sync.Locker,
+	outputLock sync.Locker,
+) (*CommandSession, error) {
+	remoteCommand := node.runner.Command(command[0], command[1:]...)
+
+	stdoutBackend := io.Writer(os.Stdout)
+	stderrBackend := io.Writer(os.Stderr)
+
+	if format == outputFormatJSON {
+		stdoutBackend = &jsonOutputWriter{
+			stream: `stdout`,
+			node:   node.String(),
+
+			output: os.Stdout,
+		}
+
+		stderrBackend = &jsonOutputWriter{
+			stream: `stderr`,
+			node:   node.String(),
+
+			output: os.Stderr,
+		}
+	}
+
+	var stdout io.WriteCloser
+	var stderr io.WriteCloser
+	switch {
+	case verbose == verbosityQuiet || format == outputFormatJSON:
+		stdout = lineflushwriter.New(nopCloser{stdoutBackend}, logLock, false)
+		stderr = lineflushwriter.New(nopCloser{stderrBackend}, logLock, false)
+
+	case verbose == verbosityNormal:
+		stdout = lineflushwriter.New(
+			prefixwriter.New(
+				nopCloser{stdoutBackend},
+				node.address.domain+" ",
+			),
+			logLock,
+			true,
+		)
+
+		stderr = lineflushwriter.New(
+			prefixwriter.New(
+				nopCloser{stderrBackend},
+				node.address.domain+" ",
+			),
+			logLock,
+			true,
+		)
+
+	default:
+		stdout = lineflushwriter.New(
+			prefixwriter.New(
+				newDebugWriter(logger),
+				"{cmd} <stdout> "+node.String()+" ",
+			),
+			logLock,
+			false,
+		)
+
+		stderr = lineflushwriter.New(
+			prefixwriter.New(
+				newDebugWriter(logger),
+				"{cmd} <stderr> "+node.String()+" ",
+			),
+			logLock,
+			false,
+		)
+	}
+
+	stdout = &statusBarUpdateWriter{stdout}
+	stderr = &statusBarUpdateWriter{stderr}
+
+	if outputLock != (*sync.Mutex)(nil) {
+		sharedLock := newSharedLock(outputLock, 2)
+
+		stdout = newLockedWriter(stdout, sharedLock)
+		stderr = newLockedWriter(stderr, sharedLock)
+	}
+
+	stdin, err := remoteCommand.StdinPipe()
+	if err != nil {
+		return nil, hierr.Errorf(
+			err,
+			`can't get stdin from remote command`,
+		)
+	}
+
+	return &CommandSession{
+		node:    node,
+		command: remoteCommand,
+
+		stdin:  stdin,
+		stdout: stdout,
+		stderr: stderr,
+	}, nil
 }

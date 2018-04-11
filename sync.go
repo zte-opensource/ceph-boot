@@ -13,11 +13,10 @@ func runSyncProtocol(
 		return err
 	}
 
-	execution, err := runCommand(
-		cluster,
+	execution, err := cluster.RunCommand(
 		command,
-		func(remoteNode *CommandSession) {
-			remoteNode.stdout = newProtocolNodeWriter(remoteNode, protocol)
+		func(session *CommandSession) {
+			session.stdout = newProtocolNodeWriter(session, protocol)
 		},
 		raw.serial,
 	)

@@ -396,7 +396,7 @@ func run(
 		return err
 	}
 
-	execution, err := runCommand(cluster, command, nil, raw.serial)
+	execution, err := cluster.RunCommand(command, nil, raw.serial)
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -693,6 +693,7 @@ func connectAndLock(
 	) * time.Millisecond
 
 	clusterConfig := &ClusterConfig{
+		addresses: addresses,
 		lockFile: lockFile,
 		noLock: noLock,
 		noLockFail: noLockFail,
@@ -702,7 +703,7 @@ func connectAndLock(
 	}
 
 	cluster := NewCluster(clusterConfig)
-	err = cluster.Connect(runnerFactory, addresses)
+	err = cluster.Connect(runnerFactory)
 	if err != nil {
 		return nil, hierr.Errorf(
 			err,

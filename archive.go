@@ -47,18 +47,17 @@ func startArchiveReceivers(
 		return nil, err
 	}
 
-	execution, err := runCommand(
-		cluster,
+	execution, err := cluster.RunCommand(
 		command,
-		func(node *CommandSession) {
-			node.stdout = lineflushwriter.New(
-				prefixwriter.New(node.stdout, "{tar} "),
+		func(session *CommandSession) {
+			session.stdout = lineflushwriter.New(
+				prefixwriter.New(session.stdout, "{tar} "),
 				logMutex,
 				true,
 			)
 
-			node.stderr = lineflushwriter.New(
-				prefixwriter.New(node.stderr, "{tar} "),
+			session.stderr = lineflushwriter.New(
+				prefixwriter.New(session.stderr, "{tar} "),
 				logMutex,
 				true,
 			)

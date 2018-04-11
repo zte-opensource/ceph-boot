@@ -54,7 +54,9 @@ func connectToCluster(
 			pool.run(func() {
 				failed := false
 
-				node, err := connectToNode(runnerFactory, nodeAddress)
+				node := NewNode(nodeAddress)
+
+				err := node.Connect(runnerFactory)
 				if err != nil {
 					atomic.AddInt64(&status.Fails, 1)
 					atomic.AddInt64(&status.Total, -1)

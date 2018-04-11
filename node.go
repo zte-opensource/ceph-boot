@@ -25,14 +25,20 @@ const (
 type Node struct {
 	address address
 	runner  runcmd.Runner
-	hbio    *heartbeatIO
 
+	hbio    *heartbeatIO
 	session *CommandSession
 }
 
 type heartbeatIO struct {
 	stdin  io.WriteCloser
 	stdout io.Reader
+}
+
+func NewNode(addr address) *Node {
+	return &Node{
+		address: addr,
+	}
 }
 
 func (node *Node) String() string {
@@ -239,11 +245,8 @@ func (node *Node) Heartbeat(
 	}
 }
 
-func connectToNode(
-	runnerFactory runnerFactory,
-	address address,
-) (*Node, error) {
-	tracef(`connecting to address: '%s'`, address)
+func (node *Node) Connect(runnerFactory runnerFactory) error {
+	tracef(`connecting to address: '%s'`, node.address)
 
 	done := make(chan struct{}, 0)
 
@@ -256,7 +259,7 @@ func connectToNode(
 			warningf(
 				"still connecting to address after %s: %s",
 				longConnectionWarningTimeout,
-				address,
+				node.address,
 			)
 
 			<-done
@@ -269,17 +272,16 @@ func connectToNode(
 
 	// to establish a ssh connection and return a instance of runcmd.Runner, which
 	// can be used to start remote execution sessions
-	runner, err := runnerFactory(address)
+	runner, err := runnerFactory(node.address)
 	if err != nil {
-		return nil, hierr.Errorf(
+		return hierr.Errorf(
 			err,
 			`can't connect to address: %s`,
-			address,
+			node.address,
 		)
 	}
 
-	return &Node{
-		address: address,
-		runner:  runner,
-	}, nil
+	node.runner = runner
+
+	return nil
 }

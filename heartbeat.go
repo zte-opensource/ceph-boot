@@ -69,7 +69,7 @@ func heartbeat(
 	// fraction of send timeout time and try to receive heartbeat response.
 	// If no response received, heartbeat process aborts.
 	for {
-		_, err := io.WriteString(node.hbIO.stdin, heartbeatPing+"\n")
+		_, err := io.WriteString(node.hbio.stdin, heartbeatPing+"\n")
 		if err != nil {
 			errorf(
 				"%s",
@@ -91,7 +91,7 @@ func heartbeat(
 			// pass
 		}
 
-		ping, err := bufio.NewReader(node.hbIO.stdout).ReadString('\n')
+		ping, err := bufio.NewReader(node.hbio.stdout).ReadString('\n')
 		if err != nil {
 			errorf(
 				"%s",

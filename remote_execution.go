@@ -10,11 +10,11 @@ import (
 
 	"golang.org/x/crypto/ssh"
 
+	"github.com/mattn/go-shellwords"
 	"github.com/reconquest/hierr-go"
 	"github.com/reconquest/lineflushwriter-go"
 	"github.com/reconquest/prefixwriter-go"
 	"github.com/zte-opensource/runcmd"
-	"github.com/mattn/go-shellwords"
 )
 
 type CommandSession struct {

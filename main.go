@@ -375,7 +375,7 @@ func handleEvaluate(args map[string]interface{}) error {
 		return err
 	}
 
-	runner := &remoteExecutionRunner{
+	raw := &rawCommand{
 		shell:     shell,
 		sudo:      sudo,
 		command:   command,
@@ -383,15 +383,15 @@ func handleEvaluate(args map[string]interface{}) error {
 		serial:    serial,
 	}
 
-	return run(cluster, runner, stdin)
+	return run(cluster, raw, stdin)
 }
 
 func run(
 	cluster *Cluster,
-	runner *remoteExecutionRunner,
+	raw *rawCommand,
 	stdin string,
 ) error {
-	execution, err := runner.run(cluster, nil)
+	execution, err := runRawCommand(cluster, raw, nil)
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -527,7 +527,7 @@ func handleSynchronize(args map[string]interface{}) error {
 		)
 	}
 
-	runner := &remoteExecutionRunner{
+	raw := &rawCommand{
 		shell:     shell,
 		sudo:      sudo,
 		command:   command,
@@ -537,10 +537,10 @@ func handleSynchronize(args map[string]interface{}) error {
 	}
 
 	if isSimpleCommand {
-		return run(cluster, runner, stdin)
+		return run(cluster, raw, stdin)
 	}
 
-	err = runSyncProtocol(cluster, runner)
+	err = runSyncProtocol(cluster, raw)
 	if err != nil {
 		return hierr.Errorf(
 			err,

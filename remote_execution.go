@@ -17,15 +17,15 @@ import (
 	"github.com/mattn/go-shellwords"
 )
 
-type remoteNodesMap map[*Node]*remoteExecutionNode
+type commandSessionMap map[*Node]*CommandSession
 
-type remoteNodes struct {
+type commandSessions struct {
 	*sync.Mutex
 
-	nodes remoteNodesMap
+	nodes commandSessionMap
 }
 
-type remoteExecutionNode struct {
+type CommandSession struct {
 	node    *Node
 	command runcmd.CmdWorker
 
@@ -38,16 +38,16 @@ type remoteExecutionNode struct {
 
 type remoteExecution struct {
 	stdin io.WriteCloser
-	nodes map[*Node]*remoteExecutionNode
+	nodes map[*Node]*CommandSession
 }
 
 type remoteExecutionResult struct {
-	node *remoteExecutionNode
+	node *CommandSession
 
 	err error
 }
 
-type remoteExecutionRunner struct {
+type rawCommand struct {
 	command   []string
 	args      []string
 	shell     string
@@ -60,20 +60,20 @@ var (
 	sudoCommand = []string{"sudo", "-n", "-E", "-H"}
 )
 
-func (nodes *remoteNodes) Set(
+func (nodes *commandSessions) Insert(
 	node *Node,
-	remote *remoteExecutionNode,
+	session *CommandSession,
 ) {
 	nodes.Lock()
 	defer nodes.Unlock()
 
-	nodes.nodes[node] = remote
+	nodes.nodes[node] = session
 }
 
-func runRemoteExecution(
+func runCommand(
 	cluster *Cluster,
 	command []string,
-	setupCallback func(*remoteExecutionNode),
+	setupCallback func(*CommandSession),
 	serial bool,
 ) (*remoteExecution, error) {
 	var (
@@ -83,7 +83,7 @@ func runRemoteExecution(
 		stdinsLock = &sync.Mutex{}
 		outputLock = &sync.Mutex{}
 
-		nodes = &remoteNodes{&sync.Mutex{}, remoteNodesMap{}}
+		nodes = &commandSessions{&sync.Mutex{}, commandSessionMap{}}
 	)
 
 	if !serial {
@@ -124,7 +124,8 @@ func runRemoteExecution(
 					).Error(),
 				)
 
-				remoteNode, err := runRemoteExecutionNode(
+				// create runcmd.CmdWorker to run command on remote node
+				session, err := createRemoteCommand(
 					node,
 					command,
 					logLock,
@@ -143,13 +144,14 @@ func runRemoteExecution(
 				}
 
 				if setupCallback != nil {
-					setupCallback(remoteNode)
+					setupCallback(session)
 				}
 
-				remoteNode.command.SetStdout(remoteNode.stdout)
-				remoteNode.command.SetStderr(remoteNode.stderr)
+				session.command.SetStdout(session.stdout)
+				session.command.SetStderr(session.stderr)
 
-				err = remoteNode.command.Start()
+				// run command on remote node
+				err = session.command.Start()
 				if err != nil {
 					errors <- &nodeErr{
 						hierr.Errorf(
@@ -168,12 +170,12 @@ func runRemoteExecution(
 					return
 				}
 
-				nodes.Set(node, remoteNode)
+				nodes.Insert(node, session)
 
 				stdinsLock.Lock()
 				defer stdinsLock.Unlock()
 
-				stdins = append(stdins, remoteNode.stdin)
+				stdins = append(stdins, session.stdin)
 
 				status.Lock()
 				defer status.Unlock()
@@ -203,12 +205,12 @@ func runRemoteExecution(
 	}, nil
 }
 
-func runRemoteExecutionNode(
+func createRemoteCommand(
 	node *Node,
 	command []string,
 	logLock sync.Locker,
 	outputLock sync.Locker,
-) (*remoteExecutionNode, error) {
+) (*CommandSession, error) {
 	remoteCommand := node.runner.Command(command[0], command[1:]...)
 
 	stdoutBackend := io.Writer(os.Stdout)
@@ -294,7 +296,7 @@ func runRemoteExecutionNode(
 		)
 	}
 
-	return &remoteExecutionNode{
+	return &CommandSession{
 		node:    node,
 		command: remoteCommand,
 
@@ -304,52 +306,52 @@ func runRemoteExecutionNode(
 	}, nil
 }
 
-func (node *remoteExecutionNode) wait() error {
-	err := node.command.Wait()
+func (session *CommandSession) wait() error {
+	err := session.command.Wait()
 	if err != nil {
-		_ = node.stdout.Close()
-		_ = node.stderr.Close()
+		_ = session.stdout.Close()
+		_ = session.stderr.Close()
 		if sshErrors, ok := err.(*ssh.ExitError); ok {
-			node.exitCode = sshErrors.Waitmsg.ExitStatus()
+			session.exitCode = sshErrors.Waitmsg.ExitStatus()
 
 			return fmt.Errorf(
 				`%s had failed to evaluate command, `+
 					`remote command exited with non-zero code: %d`,
-				node.node.String(),
-				node.exitCode,
+				session.node.String(),
+				session.exitCode,
 			)
 		}
 
 		return hierr.Errorf(
 			err,
 			`%s failed to finish execution, unexpected error`,
-			node.node.String(),
+			session.node.String(),
 		)
 	}
 
-	err = node.stdout.Close()
+	err = session.stdout.Close()
 	if err != nil {
 		return hierr.Errorf(
 			err,
 			`%s can't close stdout`,
-			node.node.String(),
+			session.node.String(),
 		)
 	}
 
-	err = node.stderr.Close()
+	err = session.stderr.Close()
 	if err != nil {
 		return hierr.Errorf(
 			err,
 			`%s can't close stderr`,
-			node.node.String(),
+			session.node.String(),
 		)
 	}
 
 	return nil
 }
 
-func (node *remoteExecutionNode) String() string {
-	return node.node.String()
+func (session *CommandSession) String() string {
+	return session.node.String()
 }
 
 func (execution *remoteExecution) wait() error {
@@ -357,8 +359,8 @@ func (execution *remoteExecution) wait() error {
 
 	results := make(chan *remoteExecutionResult, 0)
 	for _, node := range execution.nodes {
-		go func(node *remoteExecutionNode) {
-			results <- &remoteExecutionResult{node, node.wait()}
+		go func(session *CommandSession) {
+			results <- &remoteExecutionResult{session, session.wait()}
 		}(node)
 	}
 
@@ -450,28 +452,29 @@ func (execution *remoteExecution) wait() error {
 	return nil
 }
 
-func (runner *remoteExecutionRunner) run(
+func runRawCommand(
 	cluster *Cluster,
-	setupCallback func(*remoteExecutionNode),
+	raw *rawCommand,
+	setupCallback func(*CommandSession),
 ) (*remoteExecution, error) {
-	commandline := joinCommand(runner.command)
+	commandline := joinCommand(raw.command)
 
-	if runner.directory != "" {
+	if raw.directory != "" {
 		commandline = fmt.Sprintf("cd %s && { %s; }",
-			escapeCommandArgumentStrict(runner.directory),
+			escapeCommandArgumentStrict(raw.directory),
 			commandline,
 		)
 	}
 
-	if len(runner.shell) != 0 {
+	if len(raw.shell) != 0 {
 		commandline = wrapCommandIntoShell(
 			commandline,
-			runner.shell,
-			runner.args,
+			raw.shell,
+			raw.args,
 		)
 	}
 
-	if runner.sudo {
+	if raw.sudo {
 		commandline = joinCommand(sudoCommand) + " " + commandline
 	}
 
@@ -482,7 +485,7 @@ func (runner *remoteExecutionRunner) run(
 		)
 	}
 
-	return runRemoteExecution(cluster, command, setupCallback, runner.serial)
+	return runCommand(cluster, command, setupCallback, raw.serial)
 }
 
 func wrapCommandIntoShell(command string, shell string, args []string) string {

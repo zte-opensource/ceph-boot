@@ -7,7 +7,7 @@ import (
 )
 
 type protocolNodeWriter struct {
-	node     *remoteExecutionNode
+	node     *CommandSession
 	protocol *syncProtocol
 
 	stdout io.Writer
@@ -16,7 +16,7 @@ type protocolNodeWriter struct {
 }
 
 func newProtocolNodeWriter(
-	node *remoteExecutionNode,
+	node *CommandSession,
 	protocol *syncProtocol,
 ) *protocolNodeWriter {
 	return &protocolNodeWriter{

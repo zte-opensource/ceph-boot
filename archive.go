@@ -35,16 +35,17 @@ func startArchiveReceivers(
 
 	logMutex := &sync.Mutex{}
 
-	runner := &remoteExecutionRunner{
+	raw := &rawCommand{
 		command: command,
 		serial:  serial,
 		shell:   defaultRemoteExecutionShell,
 		sudo:    sudo,
 	}
 
-	execution, err := runner.run(
+	execution, err := runRawCommand(
 		cluster,
-		func(node *remoteExecutionNode) {
+		raw,
+		func(node *CommandSession) {
 			node.stdout = lineflushwriter.New(
 				prefixwriter.New(node.stdout, "{tar} "),
 				logMutex,

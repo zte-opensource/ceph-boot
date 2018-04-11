@@ -4,13 +4,14 @@ import "github.com/reconquest/hierr-go"
 
 func runSyncProtocol(
 	cluster *Cluster,
-	runner *remoteExecutionRunner,
+	raw *rawCommand,
 ) error {
 	protocol := newSyncProtocol()
 
-	execution, err := runner.run(
+	execution, err := runRawCommand(
 		cluster,
-		func(remoteNode *remoteExecutionNode) {
+		raw,
+		func(remoteNode *CommandSession) {
 			remoteNode.stdout = newProtocolNodeWriter(remoteNode, protocol)
 		},
 	)

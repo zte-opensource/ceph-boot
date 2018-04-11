@@ -68,7 +68,7 @@ func connectToCluster(
 					}
 				} else {
 					if !noLock {
-						err = node.lock(lockFile)
+						err = node.Lock(lockFile)
 						if err != nil {
 							if noLockFail {
 								warningln(err)

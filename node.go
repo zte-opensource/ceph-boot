@@ -37,7 +37,7 @@ func (node *Node) String() string {
 	return node.address.String()
 }
 
-func (node *Node) lock(filename string) error {
+func (node *Node) Lock(filename string) error {
 	lockCommandLine := []string{
 		"sh", "-c", fmt.Sprintf(
 			`flock -nx %s -c 'printf "%s\n" && cat' || printf "%s\n"`,

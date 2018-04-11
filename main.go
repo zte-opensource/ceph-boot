@@ -692,17 +692,17 @@ func connectAndLock(
 		float64(heartbeatMillisecondsBase)*heartbeatTimeoutCoefficient,
 	) * time.Millisecond
 
-	cluster, err := connectToCluster(
-		lockFile,
-		runnerFactory,
-		addresses,
-		noLock,
-		noLockFail,
-		noConnFail,
-		func(node *Node) {
-			node.Heartbeat(heartbeatMilliseconds, canceler)
-		},
-	)
+	clusterConfig := &ClusterConfig{
+		lockFile: lockFile,
+		noLock: noLock,
+		noLockFail: noLockFail,
+		noConnFail: noConnFail,
+		hbInterval: heartbeatMilliseconds,
+		hbCancelCond: canceler,
+	}
+
+	cluster := NewCluster(clusterConfig)
+	err = cluster.Connect(runnerFactory, addresses)
 	if err != nil {
 		return nil, hierr.Errorf(
 			err,

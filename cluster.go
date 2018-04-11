@@ -5,10 +5,25 @@ import (
 	"github.com/reconquest/hierr-go"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
+type ClusterConfig struct {
+	lockFile string
+	noLock bool
+	noLockFail bool
+	noConnFail bool
+	hbInterval time.Duration
+	hbCancelCond *sync.Cond
+}
+
 type Cluster struct {
+	config ClusterConfig
 	nodes []*Node
+}
+
+func NewCluster(config *ClusterConfig) *Cluster {
+	return &Cluster{config: *config}
 }
 
 // connectToCluster tries to acquire atomic file lock on each of
@@ -16,22 +31,21 @@ type Cluster struct {
 // must exist on every node. runnerFactory will be used to make connection
 // to remote node. If noLockFail is given, then only warning will be printed
 // if lock process has been failed.
-func connectToCluster(
-	lockFile string,
+func (cluster *Cluster) Connect(
 	runnerFactory runnerFactory,
 	addresses []address,
-	noLock bool,
-	noLockFail bool,
-	noConnFail bool,
-	heartbeat func(*Node),
-) (*Cluster, error) {
-	var (
-		cluster = &Cluster{}
+) error {
+	config := cluster.config
 
-		errors = make(chan error, 0)
+	lockFile := config.lockFile
+	noLock := config.noLock
+	noLockFail := config.noLockFail
+	noConnFail := config.noConnFail
+	hbInterval := config.hbInterval
+	hbCancelCond := config.hbCancelCond
 
-		nodeAddMutex = &sync.Mutex{}
-	)
+	errors := make(chan error, 0)
+	nodeAddMutex := &sync.Mutex{}
 
 	status := &struct {
 		Phase   string
@@ -79,7 +93,7 @@ func connectToCluster(
 								return
 							}
 						} else {
-							go heartbeat(node)
+							go node.Heartbeat(hbInterval, hbCancelCond)
 						}
 					}
 				}
@@ -122,7 +136,7 @@ func connectToCluster(
 	}
 
 	if erronous > 0 {
-		return nil, hierr.Push(
+		return hierr.Push(
 			fmt.Errorf(
 				`connection to %d of %d nodes failed`,
 				erronous,
@@ -132,5 +146,9 @@ func connectToCluster(
 		)
 	}
 
-	return cluster, nil
+	return nil
+}
+
+func (cluster *Cluster) RunCommand() {
+
 }

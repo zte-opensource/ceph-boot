@@ -391,7 +391,12 @@ func run(
 	raw *rawCommand,
 	stdin string,
 ) error {
-	execution, err := runRawCommand(cluster, raw, nil)
+	command, err := raw.parseCommand()
+	if err != nil {
+		return err
+	}
+
+	execution, err := runCommand(cluster, command, nil, raw.serial)
 	if err != nil {
 		return hierr.Errorf(
 			err,

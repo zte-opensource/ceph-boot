@@ -17,14 +17,6 @@ import (
 	"github.com/mattn/go-shellwords"
 )
 
-type commandSessionMap map[*Node]*CommandSession
-
-type commandSessions struct {
-	*sync.Mutex
-
-	nodes commandSessionMap
-}
-
 type CommandSession struct {
 	node    *Node
 	command runcmd.CmdWorker
@@ -38,11 +30,11 @@ type CommandSession struct {
 
 type remoteExecution struct {
 	stdin io.WriteCloser
-	nodes map[*Node]*CommandSession
+	nodes []*Node
 }
 
 type remoteExecutionResult struct {
-	node *CommandSession
+	session *CommandSession
 
 	err error
 }
@@ -56,18 +48,37 @@ type rawCommand struct {
 	serial    bool
 }
 
-var (
-	sudoCommand = []string{"sudo", "-n", "-E", "-H"}
-)
+func (raw *rawCommand) parseCommand() (command []string, err error) {
+	commandline := joinCommand(raw.command)
 
-func (nodes *commandSessions) Insert(
-	node *Node,
-	session *CommandSession,
-) {
-	nodes.Lock()
-	defer nodes.Unlock()
+	if raw.directory != "" {
+		commandline = fmt.Sprintf("cd %s && { %s; }",
+			escapeCommandArgumentStrict(raw.directory),
+			commandline,
+		)
+	}
 
-	nodes.nodes[node] = session
+	if len(raw.shell) != 0 {
+		commandline = wrapCommandIntoShell(
+			commandline,
+			raw.shell,
+			raw.args,
+		)
+	}
+
+	if raw.sudo {
+		sudoCommand := []string{"sudo", "-n", "-E", "-H"}
+		commandline = joinCommand(sudoCommand) + " " + commandline
+	}
+
+	command, err = shellwords.Parse(commandline)
+	if err != nil {
+		return nil, hierr.Errorf(
+			err, "unparsable command line: %s", commandline,
+		)
+	}
+
+	return
 }
 
 func runCommand(
@@ -77,13 +88,11 @@ func runCommand(
 	serial bool,
 ) (*remoteExecution, error) {
 	var (
-		stdins = []io.WriteCloser{}
+		stdins []io.WriteCloser
 
 		logLock    = &sync.Mutex{}
 		stdinsLock = &sync.Mutex{}
 		outputLock = &sync.Mutex{}
-
-		nodes = &commandSessions{&sync.Mutex{}, commandSessionMap{}}
 	)
 
 	if !serial {
@@ -125,7 +134,7 @@ func runCommand(
 				)
 
 				// create runcmd.CmdWorker to run command on remote node
-				session, err := createRemoteCommand(
+				session, err := createCommandSession(
 					node,
 					command,
 					logLock,
@@ -170,7 +179,7 @@ func runCommand(
 					return
 				}
 
-				nodes.Insert(node, session)
+				node.session = session
 
 				stdinsLock.Lock()
 				defer stdinsLock.Unlock()
@@ -201,11 +210,11 @@ func runCommand(
 	return &remoteExecution{
 		stdin: &multiWriteCloser{stdins},
 
-		nodes: nodes.nodes,
+		nodes: cluster.nodes,
 	}, nil
 }
 
-func createRemoteCommand(
+func createCommandSession(
 	node *Node,
 	command []string,
 	logLock sync.Locker,
@@ -350,10 +359,6 @@ func (session *CommandSession) wait() error {
 	return nil
 }
 
-func (session *CommandSession) String() string {
-	return session.node.String()
-}
-
 func (execution *remoteExecution) wait() error {
 	tracef(`waiting %d nodes to finish`, len(execution.nodes))
 
@@ -361,7 +366,7 @@ func (execution *remoteExecution) wait() error {
 	for _, node := range execution.nodes {
 		go func(session *CommandSession) {
 			results <- &remoteExecutionResult{session, session.wait()}
-		}(node)
+		}(node.session)
 	}
 
 	executionErrors := fmt.Errorf(
@@ -387,14 +392,14 @@ func (execution *remoteExecution) wait() error {
 	for range execution.nodes {
 		result := <-results
 		if result.err != nil {
-			exitCodes[result.node.exitCode]++
+			exitCodes[result.session.exitCode]++
 
 			executionErrors = hierr.Push(
 				executionErrors,
 				hierr.Errorf(
 					result.err,
 					`%s has finished with error`,
-					result.node.node.String(),
+					result.session.node.String(),
 				),
 			)
 
@@ -403,8 +408,8 @@ func (execution *remoteExecution) wait() error {
 
 			tracef(
 				`%s finished with exit code: '%d'`,
-				result.node.node.String(),
-				result.node.exitCode,
+				result.session.node.String(),
+				result.session.exitCode,
 			)
 
 			continue
@@ -414,7 +419,7 @@ func (execution *remoteExecution) wait() error {
 
 		tracef(
 			`%s has successfully finished execution`,
-			result.node.node.String(),
+			result.session.node.String(),
 		)
 	}
 
@@ -450,42 +455,6 @@ func (execution *remoteExecution) wait() error {
 	}
 
 	return nil
-}
-
-func runRawCommand(
-	cluster *Cluster,
-	raw *rawCommand,
-	setupCallback func(*CommandSession),
-) (*remoteExecution, error) {
-	commandline := joinCommand(raw.command)
-
-	if raw.directory != "" {
-		commandline = fmt.Sprintf("cd %s && { %s; }",
-			escapeCommandArgumentStrict(raw.directory),
-			commandline,
-		)
-	}
-
-	if len(raw.shell) != 0 {
-		commandline = wrapCommandIntoShell(
-			commandline,
-			raw.shell,
-			raw.args,
-		)
-	}
-
-	if raw.sudo {
-		commandline = joinCommand(sudoCommand) + " " + commandline
-	}
-
-	command, err := shellwords.Parse(commandline)
-	if err != nil {
-		return nil, hierr.Errorf(
-			err, "unparsable command line: %s", commandline,
-		)
-	}
-
-	return runCommand(cluster, command, setupCallback, raw.serial)
 }
 
 func wrapCommandIntoShell(command string, shell string, args []string) string {

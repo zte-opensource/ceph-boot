@@ -28,6 +28,7 @@ type Cluster struct {
 type Node struct {
 	address address
 	runner  runcmd.Runner
+	session *CommandSession
 
 	hbIO *HeartbeatIO
 }

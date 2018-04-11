@@ -42,9 +42,14 @@ func startArchiveReceivers(
 		sudo:    sudo,
 	}
 
-	execution, err := runRawCommand(
+	command, err := raw.parseCommand()
+	if err != nil {
+		return nil, err
+	}
+
+	execution, err := runCommand(
 		cluster,
-		raw,
+		command,
 		func(node *CommandSession) {
 			node.stdout = lineflushwriter.New(
 				prefixwriter.New(node.stdout, "{tar} "),
@@ -58,6 +63,7 @@ func startArchiveReceivers(
 				true,
 			)
 		},
+		raw.serial,
 	)
 	if err != nil {
 		return nil, hierr.Errorf(

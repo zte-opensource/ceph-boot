@@ -58,10 +58,10 @@ func (protocol *syncProtocol) Init(output io.WriteCloser) error {
 
 // SendNode sends to the writer serialized representation of specified node as
 // NODE message.
-func (protocol *syncProtocol) SendNode(node *CommandSession) error {
+func (protocol *syncProtocol) SendNode(session *CommandSession) error {
 	_, err := io.WriteString(
 		protocol.output,
-		syncProtocolNode+" "+node.String()+"\n",
+		syncProtocolNode+" "+session.node.String()+"\n",
 	)
 	if err != nil {
 		return protocolSuspendEOF(err)

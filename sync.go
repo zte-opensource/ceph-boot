@@ -8,12 +8,18 @@ func runSyncProtocol(
 ) error {
 	protocol := newSyncProtocol()
 
-	execution, err := runRawCommand(
+	command, err := raw.parseCommand()
+	if err != nil {
+		return err
+	}
+
+	execution, err := runCommand(
 		cluster,
-		raw,
+		command,
 		func(remoteNode *CommandSession) {
 			remoteNode.stdout = newProtocolNodeWriter(remoteNode, protocol)
 		},
+		raw.serial,
 	)
 	if err != nil {
 		return hierr.Errorf(
@@ -35,7 +41,7 @@ func runSyncProtocol(
 	tracef(`sending information about %d nodes to each`, len(execution.nodes))
 
 	for _, node := range execution.nodes {
-		err = protocol.SendNode(node)
+		err = protocol.SendNode(node.session)
 		if err != nil {
 			return hierr.Errorf(
 				err,

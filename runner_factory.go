@@ -53,19 +53,15 @@ func createRemoteRunnerFactoryWithAgent(
 }
 
 func createRunner(
-	factory func(string, string, string, runcmd.Timeouts) (
-		*runcmd.Remote,
-		error,
-	),
-
-	key string,
+	factory func(string, string, string, runcmd.Timeouts) (*runcmd.Remote, error),
+	auth string,
 	address address,
 	timeouts runcmd.Timeouts,
 ) (runcmd.Runner, error) {
 	return factory(
 		address.user,
 		fmt.Sprintf("%s:%d", address.domain, address.port),
-		key,
+		auth,
 		timeouts,
 	)
 }

@@ -387,7 +387,7 @@ func handleEvaluate(args map[string]interface{}) error {
 }
 
 func run(
-	cluster *distributedLock,
+	cluster *Cluster,
 	runner *remoteExecutionRunner,
 	stdin string,
 ) error {
@@ -553,7 +553,7 @@ func handleSynchronize(args map[string]interface{}) error {
 
 func upload(
 	args map[string]interface{},
-	cluster *distributedLock,
+	cluster *Cluster,
 	filesList []file,
 ) error {
 	var (
@@ -617,7 +617,7 @@ func upload(
 func connectAndLock(
 	args map[string]interface{},
 	canceler *sync.Cond,
-) (*distributedLock, error) {
+) (*Cluster, error) {
 	var (
 		hosts = args["--host"].([]string)
 
@@ -655,7 +655,7 @@ func connectAndLock(
 		)
 	}
 
-	runners, err := createRunnerFactory(timeouts, sshKeyPath, askPassword, sshForwarding)
+	runnerFactory, err := createRunnerFactory(timeouts, sshKeyPath, askPassword, sshForwarding)
 	if err != nil {
 		return nil, hierr.Errorf(
 			err,
@@ -689,12 +689,12 @@ func connectAndLock(
 
 	cluster, err := connectToCluster(
 		lockFile,
-		runners,
+		runnerFactory,
 		addresses,
 		noLock,
 		noLockFail,
 		noConnFail,
-		func(node *distributedLockNode) {
+		func(node *Node) {
 			heartbeat(heartbeatMilliseconds, node, canceler)
 		},
 	)

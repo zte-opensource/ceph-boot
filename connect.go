@@ -1,17 +1,142 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"io"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
 
 	"github.com/reconquest/hierr-go"
+	"github.com/reconquest/lineflushwriter-go"
+	"github.com/reconquest/prefixwriter-go"
+	"github.com/zte-opensource/runcmd"
 )
 
 const (
 	longConnectionWarningTimeout = 2 * time.Second
+	lockAcquiredString = `acquired`
+	lockLockedString   = `locked`
 )
+
+type Cluster struct {
+	nodes []*Node
+}
+
+type Node struct {
+	address address
+	runner  runcmd.Runner
+
+	hbIO *HeartbeatIO
+}
+
+type HeartbeatIO struct {
+	stdin  io.WriteCloser
+	stdout io.Reader
+}
+
+func (node *Node) String() string {
+	return node.address.String()
+}
+
+func (node *Node) lock(filename string) error {
+	lockCommandLine := []string{
+		"sh", "-c", fmt.Sprintf(
+			`flock -nx %s -c 'printf "%s\n" && cat' || printf "%s\n"`,
+			filename, lockAcquiredString, lockLockedString,
+		),
+	}
+
+	logMutex := &sync.Mutex{}
+
+	traceln(hierr.Errorf(
+		lockCommandLine,
+		`%s running lock command`,
+		node,
+	))
+
+	lockCommand := node.runner.Command(
+		lockCommandLine[0],
+		lockCommandLine[1:]...,
+	)
+
+	stdout, err := lockCommand.StdoutPipe()
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`can't get control stdout pipe from lock process`,
+		)
+	}
+
+	stderr := lineflushwriter.New(
+		prefixwriter.New(
+			newDebugWriter(logger),
+			fmt.Sprintf("%s {flock} <stderr> ", node.String()),
+		),
+		logMutex,
+		true,
+	)
+
+	lockCommand.SetStderr(stderr)
+
+	stdin, err := lockCommand.StdinPipe()
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`can't get control stdin pipe to lock process`,
+		)
+	}
+
+	err = lockCommand.Start()
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`%s can't start lock command: '%s`,
+			node, lockCommandLine,
+		)
+	}
+
+	line, err := bufio.NewReader(stdout).ReadString('\n')
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`%s can't read lock status line from lock process`,
+			node,
+		)
+	}
+
+	switch strings.TrimSpace(line) {
+	case lockAcquiredString:
+		// pass
+
+	case lockLockedString:
+		return fmt.Errorf(
+			`%s can't acquire lock, `+
+				`lock already obtained by another process `+
+				`or unavailable`,
+			node,
+		)
+
+	default:
+		return fmt.Errorf(
+			`%s unexpected reply string encountered `+
+				`instead of '%s' or '%s': '%s'`,
+			node, lockAcquiredString, lockLockedString,
+			line,
+		)
+	}
+
+	tracef(`lock acquired: '%s' on '%s'`, node, filename)
+
+	node.hbIO = &HeartbeatIO{
+		stdin:  stdin,
+		stdout: stdout,
+	}
+
+	return nil
+}
 
 // connectToCluster tries to acquire atomic file lock on each of
 // specified remote nodes. lockFile is used to specify target lock file, it
@@ -25,10 +150,10 @@ func connectToCluster(
 	noLock bool,
 	noLockFail bool,
 	noConnFail bool,
-	heartbeat func(*distributedLockNode),
-) (*distributedLock, error) {
+	heartbeat func(*Node),
+) (*Cluster, error) {
 	var (
-		cluster = &distributedLock{}
+		cluster = &Cluster{}
 
 		errors = make(chan error, 0)
 
@@ -56,7 +181,7 @@ func connectToCluster(
 			pool.run(func() {
 				failed := false
 
-				node, err := connectToNode(cluster, runnerFactory, nodeAddress)
+				node, err := connectToNode(runnerFactory, nodeAddress)
 				if err != nil {
 					atomic.AddInt64(&status.Fails, 1)
 					atomic.AddInt64(&status.Total, -1)
@@ -136,10 +261,9 @@ func connectToCluster(
 }
 
 func connectToNode(
-	cluster *distributedLock,
 	runnerFactory runnerFactory,
 	address address,
-) (*distributedLockNode, error) {
+) (*Node, error) {
 	tracef(`connecting to address: '%s'`, address)
 
 	done := make(chan struct{}, 0)
@@ -164,6 +288,8 @@ func connectToNode(
 		done <- struct{}{}
 	}()
 
+	// to establish a ssh connection and return a instance of runcmd.Runner, which
+	// can be used to start remote execution sessions
 	runner, err := runnerFactory(address)
 	if err != nil {
 		return nil, hierr.Errorf(
@@ -173,7 +299,7 @@ func connectToNode(
 		)
 	}
 
-	return &distributedLockNode{
+	return &Node{
 		address: address,
 		runner:  runner,
 	}, nil

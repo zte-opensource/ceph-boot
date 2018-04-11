@@ -17,7 +17,7 @@ import (
 	"github.com/mattn/go-shellwords"
 )
 
-type remoteNodesMap map[*distributedLockNode]*remoteExecutionNode
+type remoteNodesMap map[*Node]*remoteExecutionNode
 
 type remoteNodes struct {
 	*sync.Mutex
@@ -26,7 +26,7 @@ type remoteNodes struct {
 }
 
 type remoteExecutionNode struct {
-	node    *distributedLockNode
+	node    *Node
 	command runcmd.CmdWorker
 
 	stdin  io.WriteCloser
@@ -38,7 +38,7 @@ type remoteExecutionNode struct {
 
 type remoteExecution struct {
 	stdin io.WriteCloser
-	nodes map[*distributedLockNode]*remoteExecutionNode
+	nodes map[*Node]*remoteExecutionNode
 }
 
 type remoteExecutionResult struct {
@@ -61,7 +61,7 @@ var (
 )
 
 func (nodes *remoteNodes) Set(
-	node *distributedLockNode,
+	node *Node,
 	remote *remoteExecutionNode,
 ) {
 	nodes.Lock()
@@ -71,7 +71,7 @@ func (nodes *remoteNodes) Set(
 }
 
 func runRemoteExecution(
-	lockedNodes *distributedLock,
+	cluster *Cluster,
 	command []string,
 	setupCallback func(*remoteExecutionNode),
 	serial bool,
@@ -100,7 +100,7 @@ func runRemoteExecution(
 			Success int
 		}{
 			Phase: `exec`,
-			Total: len(lockedNodes.nodes),
+			Total: len(cluster.nodes),
 		}
 	)
 
@@ -108,12 +108,12 @@ func runRemoteExecution(
 
 	type nodeErr struct {
 		err  error
-		node *distributedLockNode
+		node *Node
 	}
 
 	errors := make(chan *nodeErr, 0)
-	for _, node := range lockedNodes.nodes {
-		go func(node *distributedLockNode) {
+	for _, node := range cluster.nodes {
+		go func(node *Node) {
 			pool.run(func() {
 				tracef(
 					"%s",
@@ -185,7 +185,7 @@ func runRemoteExecution(
 		}(node)
 	}
 
-	for range lockedNodes.nodes {
+	for range cluster.nodes {
 		err := <-errors
 		if err != nil {
 			return nil, hierr.Errorf(
@@ -204,7 +204,7 @@ func runRemoteExecution(
 }
 
 func runRemoteExecutionNode(
-	node *distributedLockNode,
+	node *Node,
 	command []string,
 	logLock sync.Locker,
 	outputLock sync.Locker,
@@ -451,7 +451,7 @@ func (execution *remoteExecution) wait() error {
 }
 
 func (runner *remoteExecutionRunner) run(
-	cluster *distributedLock,
+	cluster *Cluster,
 	setupCallback func(*remoteExecutionNode),
 ) (*remoteExecution, error) {
 	commandline := joinCommand(runner.command)

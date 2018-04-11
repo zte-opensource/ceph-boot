@@ -20,7 +20,7 @@ type file struct {
 }
 
 func startArchiveReceivers(
-	cluster *distributedLock,
+	cluster *Cluster,
 	rootDir string,
 	sudo bool,
 	serial bool,

@@ -3,7 +3,7 @@ package main
 import "github.com/reconquest/hierr-go"
 
 func runSyncProtocol(
-	cluster *distributedLock,
+	cluster *Cluster,
 	runner *remoteExecutionRunner,
 ) error {
 	protocol := newSyncProtocol()

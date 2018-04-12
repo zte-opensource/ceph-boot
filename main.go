@@ -34,14 +34,14 @@ const usage = `orgalorg - files synchronization on many hosts.
 
 First of all, orgalorg will try to acquire global cluster lock by flock'ing
 file, specified by '--lock-file' on each host. If at least one flock fails,
-then orgalorg will stop, unless '-t' flag is specified.
+then orgalorg will stop, unless '--no-lock-fail' flag is specified.
 
 orgalorg will create tar-archive from specified files, keeping file attributes
 and ownerships, then upload archive in parallel to the specified hosts and
-unpack it in the temporary directory (see '-r'). No further actions will be
+unpack it in the temporary directory (see '--root'). No further actions will be
 done until all hosts will unpack the archive.
 
-If '-S' flag specified, then sync command tool will be launched after upload
+If '--sync' flag specified, then sync command tool will be launched after upload
 (see '--sync-cmd'). Sync command tool can send stdout and stderr back to the
 orgalorg, but it needs to be compatible with following procotol.
 
@@ -81,7 +81,7 @@ received sync messages.
 Usage:
   orgalorg -h | --help
   orgalorg [options] [-v]... (-o <host>...|-s) -L
-  orgalorg [options] [-v]... (-o <host>...|-s) -r= -U <files>...
+  orgalorg [options] [-v]... (-o <host>...|-s) [-r=] -U <files>...
   orgalorg [options] [-v]... (-o <host>...|-s) [-r=] [-g=]... -S <files>...
   orgalorg [options] [-v]... (-o <host>...|-s) [-r=] -C [--] <command>...
 
@@ -476,20 +476,6 @@ func handleSynchronize(args map[string]interface{}) error {
 		err error
 	)
 
-	if !lockOnly {
-		debugf(`building files list from %d sources`, len(fileSources))
-		filesList, err = getFilesList(relative, fileSources...)
-		if err != nil {
-			return hierr.Errorf(
-				err,
-				`can't build files list`,
-			)
-		}
-
-		debugf(`file list contains %d files`, len(filesList))
-		tracef(`files to upload: %+v`, filesList)
-	}
-
 	canceler := sync.NewCond(&sync.Mutex{})
 
 	cluster, err := connectAndLock(args, canceler)
@@ -506,6 +492,18 @@ func handleSynchronize(args map[string]interface{}) error {
 
 		return nil
 	}
+
+	debugf(`building files list from %d sources`, len(fileSources))
+	filesList, err = getFilesList(relative, fileSources...)
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`can't build files list`,
+		)
+	}
+
+	debugf(`file list contains %d files`, len(filesList))
+	tracef(`files to upload: %+v`, filesList)
 
 	err = upload(args, cluster, filesList)
 	if err != nil {

@@ -14,7 +14,6 @@ type RawCommand struct {
 	shell     string
 	directory string
 	sudo      bool
-	serial    bool
 }
 
 func (raw *RawCommand) ParseCommand() (command []string, err error) {

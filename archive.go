@@ -37,7 +37,6 @@ func startArchiveReceivers(
 
 	raw := &RawCommand{
 		command: command,
-		serial:  serial,
 		shell:   defaultRemoteExecutionShell,
 		sudo:    sudo,
 	}
@@ -62,7 +61,7 @@ func startArchiveReceivers(
 				true,
 			)
 		},
-		raw.serial,
+		serial,
 	)
 	if err != nil {
 		return nil, hierr.Errorf(

@@ -365,7 +365,7 @@ func handleEvaluate(args map[string]interface{}) error {
 		shell      = args["--shell"].(string)
 		serial     = args["--serial"].(bool)
 
-		command = args["<command>"].([]string)
+		commandline = args["<command>"].([]string)
 	)
 
 	canceler := sync.NewCond(&sync.Mutex{})
@@ -378,25 +378,25 @@ func handleEvaluate(args map[string]interface{}) error {
 	raw := &RawCommand{
 		shell:     shell,
 		sudo:      sudo,
-		command:   command,
+		command:   commandline,
 		directory: rootDir,
-		serial:    serial,
 	}
 
-	return run(cluster, raw, stdin)
-}
-
-func run(
-	cluster *Cluster,
-	raw *RawCommand,
-	stdin string,
-) error {
 	command, err := raw.ParseCommand()
 	if err != nil {
 		return err
 	}
 
-	execution, err := cluster.RunCommand(command, nil, raw.serial)
+	return run(cluster, command, serial, stdin)
+}
+
+func run(
+	cluster *Cluster,
+	command []string,
+	serial bool,
+	stdin string,
+) error {
+	execution, err := cluster.RunCommand(command, nil, serial)
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -523,7 +523,7 @@ func handleSynchronize(args map[string]interface{}) error {
 
 	tracef(`starting sync tool`)
 
-	command, err := shellwords.NewParser().Parse(commandString)
+	commandline, err := shellwords.NewParser().Parse(commandString)
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -535,17 +535,21 @@ func handleSynchronize(args map[string]interface{}) error {
 	raw := &RawCommand{
 		shell:     shell,
 		sudo:      sudo,
-		command:   command,
+		command:   commandline,
 		args:      commandArgs,
 		directory: rootDir,
-		serial:    serial,
+	}
+
+	command, err := raw.ParseCommand()
+	if err != nil {
+		return err
 	}
 
 	if isSimpleCommand {
-		return run(cluster, raw, stdin)
+		return run(cluster, command, serial, stdin)
 	}
 
-	err = runSyncProtocol(cluster, raw)
+	err = runSyncProtocol(cluster, command, serial)
 	if err != nil {
 		return hierr.Errorf(
 			err,

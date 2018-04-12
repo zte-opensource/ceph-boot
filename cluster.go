@@ -3,25 +3,25 @@ package main
 import (
 	"fmt"
 	"github.com/reconquest/hierr-go"
+	"io"
 	"sync"
 	"sync/atomic"
 	"time"
-	"io"
 )
 
 type ClusterConfig struct {
-	addresses []address
-	lockFile string
-	noLock bool
-	noLockFail bool
-	noConnFail bool
-	hbInterval time.Duration
+	addresses    []address
+	lockFile     string
+	noLock       bool
+	noLockFail   bool
+	noConnFail   bool
+	hbInterval   time.Duration
 	hbCancelCond *sync.Cond
 }
 
 type Cluster struct {
 	config ClusterConfig
-	nodes []*Node
+	nodes  []*Node
 }
 
 func NewCluster(config *ClusterConfig) *Cluster {
@@ -153,9 +153,9 @@ func (cluster *Cluster) Connect(
 
 func (cluster *Cluster) RunCommand(
 	command []string,
-	setupCallback func(*CommandSession),
+	setupCallback func(*RemoteCommand),
 	serial bool,
-) (*remoteExecution, error) {
+) (*RemoteExecution, error) {
 	var (
 		stdins []io.WriteCloser
 
@@ -203,7 +203,7 @@ func (cluster *Cluster) RunCommand(
 				)
 
 				// create runcmd.CmdWorker to prepare running command on remote node
-				session, err := node.createCommandSession(
+				remoteCommand, err := node.CreateRemoteCommand(
 					command,
 					logLock,
 					outputLock,
@@ -221,14 +221,14 @@ func (cluster *Cluster) RunCommand(
 				}
 
 				if setupCallback != nil {
-					setupCallback(session)
+					setupCallback(remoteCommand)
 				}
 
-				session.command.SetStdout(session.stdout)
-				session.command.SetStderr(session.stderr)
+				remoteCommand.worker.SetStdout(remoteCommand.stdout)
+				remoteCommand.worker.SetStderr(remoteCommand.stderr)
 
 				// run command on remote node
-				err = session.command.Start()
+				err = remoteCommand.worker.Start()
 				if err != nil {
 					errors <- &nodeErr{
 						hierr.Errorf(
@@ -247,12 +247,12 @@ func (cluster *Cluster) RunCommand(
 					return
 				}
 
-				node.session = session
+				node.remoteCommand = remoteCommand
 
 				stdinsLock.Lock()
 				defer stdinsLock.Unlock()
 
-				stdins = append(stdins, session.stdin)
+				stdins = append(stdins, remoteCommand.stdin)
 
 				status.Lock()
 				defer status.Unlock()
@@ -275,9 +275,8 @@ func (cluster *Cluster) RunCommand(
 		}
 	}
 
-	return &remoteExecution{
+	return &RemoteExecution{
 		stdin: &multiWriteCloser{stdins},
-
 		nodes: cluster.nodes,
 	}, nil
 }

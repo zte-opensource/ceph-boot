@@ -2,19 +2,17 @@ package main
 
 import (
 	"fmt"
+	"golang.org/x/crypto/ssh"
 	"io"
 	"reflect"
-	"strings"
-	"golang.org/x/crypto/ssh"
 
-	"github.com/mattn/go-shellwords"
 	"github.com/reconquest/hierr-go"
 	"github.com/zte-opensource/runcmd"
 )
 
-type CommandSession struct {
-	node    *Node
-	command runcmd.CmdWorker
+type RemoteCommand struct {
+	node   *Node
+	worker runcmd.CmdWorker
 
 	stdin  io.WriteCloser
 	stdout io.WriteCloser
@@ -23,111 +21,69 @@ type CommandSession struct {
 	exitCode int
 }
 
-type remoteExecution struct {
-	stdin io.WriteCloser
-	nodes []*Node
-}
-
-type remoteExecutionResult struct {
-	session *CommandSession
+type RemoteCommandResult struct {
+	session *RemoteCommand
 
 	err error
 }
 
-type rawCommand struct {
-	command   []string
-	args      []string
-	shell     string
-	directory string
-	sudo      bool
-	serial    bool
+type RemoteExecution struct {
+	stdin io.WriteCloser
+	nodes []*Node
 }
 
-func (raw *rawCommand) parseCommand() (command []string, err error) {
-	commandline := joinCommand(raw.command)
-
-	if raw.directory != "" {
-		commandline = fmt.Sprintf("cd %s && { %s; }",
-			escapeCommandArgumentStrict(raw.directory),
-			commandline,
-		)
-	}
-
-	if len(raw.shell) != 0 {
-		commandline = wrapCommandIntoShell(
-			commandline,
-			raw.shell,
-			raw.args,
-		)
-	}
-
-	if raw.sudo {
-		sudoCommand := []string{"sudo", "-n", "-E", "-H"}
-		commandline = joinCommand(sudoCommand) + " " + commandline
-	}
-
-	command, err = shellwords.Parse(commandline)
+func (rc *RemoteCommand) Wait() error {
+	err := rc.worker.Wait()
 	if err != nil {
-		return nil, hierr.Errorf(
-			err, "unparsable command line: %s", commandline,
-		)
-	}
-
-	return
-}
-
-func (session *CommandSession) wait() error {
-	err := session.command.Wait()
-	if err != nil {
-		_ = session.stdout.Close()
-		_ = session.stderr.Close()
+		_ = rc.stdout.Close()
+		_ = rc.stderr.Close()
 		if sshErrors, ok := err.(*ssh.ExitError); ok {
-			session.exitCode = sshErrors.Waitmsg.ExitStatus()
+			rc.exitCode = sshErrors.Waitmsg.ExitStatus()
 
 			return fmt.Errorf(
 				`%s had failed to evaluate command, `+
 					`remote command exited with non-zero code: %d`,
-				session.node.String(),
-				session.exitCode,
+				rc.node.String(),
+				rc.exitCode,
 			)
 		}
 
 		return hierr.Errorf(
 			err,
 			`%s failed to finish execution, unexpected error`,
-			session.node.String(),
+			rc.node.String(),
 		)
 	}
 
-	err = session.stdout.Close()
+	err = rc.stdout.Close()
 	if err != nil {
 		return hierr.Errorf(
 			err,
 			`%s can't close stdout`,
-			session.node.String(),
+			rc.node.String(),
 		)
 	}
 
-	err = session.stderr.Close()
+	err = rc.stderr.Close()
 	if err != nil {
 		return hierr.Errorf(
 			err,
 			`%s can't close stderr`,
-			session.node.String(),
+			rc.node.String(),
 		)
 	}
 
 	return nil
 }
 
-func (execution *remoteExecution) wait() error {
+func (execution *RemoteExecution) Wait() error {
 	tracef(`waiting %d nodes to finish`, len(execution.nodes))
 
-	results := make(chan *remoteExecutionResult, 0)
+	results := make(chan *RemoteCommandResult, 0)
 	for _, node := range execution.nodes {
-		go func(session *CommandSession) {
-			results <- &remoteExecutionResult{session, session.wait()}
-		}(node.session)
+		go func(session *RemoteCommand) {
+			results <- &RemoteCommandResult{session, session.Wait()}
+		}(node.remoteCommand)
 	}
 
 	executionErrors := fmt.Errorf(
@@ -216,53 +172,4 @@ func (execution *remoteExecution) wait() error {
 	}
 
 	return nil
-}
-
-func wrapCommandIntoShell(command string, shell string, args []string) string {
-	if shell == "" {
-		return command
-	}
-
-	command = strings.Replace(shell, `{}`, command, -1)
-
-	if len(args) == 0 {
-		return command
-	}
-
-	escapedArgs := []string{}
-	for _, arg := range args {
-		escapedArgs = append(escapedArgs, escapeCommandArgumentStrict(arg))
-	}
-
-	return command + " _ " + strings.Join(escapedArgs, " ")
-}
-
-func joinCommand(command []string) string {
-	escapedParts := []string{}
-
-	for _, part := range command {
-		escapedParts = append(escapedParts, escapeCommandArgument(part))
-	}
-
-	return strings.Join(escapedParts, ` `)
-}
-
-func escapeCommandArgument(argument string) string {
-	argument = strings.Replace(argument, `'`, `'\''`, -1)
-
-	return argument
-}
-
-func escapeCommandArgumentStrict(argument string) string {
-	escaper := strings.NewReplacer(
-		`\`, `\\`,
-		"`", "\\`",
-		`"`, `\"`,
-		`'`, `'\''`,
-		`$`, `\$`,
-	)
-
-	escaper.Replace(argument)
-
-	return `"` + argument + `"`
 }

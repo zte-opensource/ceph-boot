@@ -4,19 +4,19 @@ import "github.com/reconquest/hierr-go"
 
 func runSyncProtocol(
 	cluster *Cluster,
-	raw *rawCommand,
+	raw *RawCommand,
 ) error {
 	protocol := newSyncProtocol()
 
-	command, err := raw.parseCommand()
+	command, err := raw.ParseCommand()
 	if err != nil {
 		return err
 	}
 
 	execution, err := cluster.RunCommand(
 		command,
-		func(session *CommandSession) {
-			session.stdout = newProtocolNodeWriter(session, protocol)
+		func(remoteCommand *RemoteCommand) {
+			remoteCommand.stdout = newProtocolNodeWriter(remoteCommand, protocol)
 		},
 		raw.serial,
 	)
@@ -40,7 +40,7 @@ func runSyncProtocol(
 	tracef(`sending information about %d nodes to each`, len(execution.nodes))
 
 	for _, node := range execution.nodes {
-		err = protocol.SendNode(node.session)
+		err = protocol.SendNode(node.remoteCommand)
 		if err != nil {
 			return hierr.Errorf(
 				err,
@@ -62,7 +62,7 @@ func runSyncProtocol(
 
 	debugf(`waiting sync tool to finish`)
 
-	err = execution.wait()
+	err = execution.Wait()
 	if err != nil {
 		return hierr.Errorf(
 			err,

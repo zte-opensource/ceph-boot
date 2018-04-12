@@ -7,8 +7,8 @@ import (
 )
 
 type protocolNodeWriter struct {
-	session  *CommandSession
-	protocol *syncProtocol
+	remoteCommand *RemoteCommand
+	protocol      *syncProtocol
 
 	stdout io.Writer
 
@@ -16,14 +16,14 @@ type protocolNodeWriter struct {
 }
 
 func newProtocolNodeWriter(
-	session *CommandSession,
+	remoteCommand *RemoteCommand,
 	protocol *syncProtocol,
 ) *protocolNodeWriter {
 	return &protocolNodeWriter{
-		session:  session,
-		stdout:   session.stdout,
-		protocol: protocol,
-		buffer:   &bytes.Buffer{},
+		remoteCommand: remoteCommand,
+		stdout:        remoteCommand.stdout,
+		protocol:      protocol,
+		buffer:        &bytes.Buffer{},
 	}
 }
 
@@ -52,11 +52,11 @@ func (writer *protocolNodeWriter) Write(data []byte) (int, error) {
 		case writer.protocol.IsSyncCommand(line):
 			tracef(
 				"%s sent sync command: '%s'",
-				writer.session.node.String(),
+				writer.remoteCommand.node.String(),
 				line,
 			)
 
-			err := writer.protocol.SendSync(writer.session.node, line)
+			err := writer.protocol.SendSync(writer.remoteCommand.node, line)
 
 			if err != nil {
 				return 0, err

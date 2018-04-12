@@ -24,7 +24,7 @@ func startArchiveReceivers(
 	rootDir string,
 	sudo bool,
 	serial bool,
-) (*remoteExecution, error) {
+) (*RemoteExecution, error) {
 	command := []string{
 		"mkdir", "-p", rootDir, "&&", "tar", "--directory", rootDir, "-x",
 	}
@@ -35,29 +35,29 @@ func startArchiveReceivers(
 
 	logMutex := &sync.Mutex{}
 
-	raw := &rawCommand{
+	raw := &RawCommand{
 		command: command,
 		serial:  serial,
 		shell:   defaultRemoteExecutionShell,
 		sudo:    sudo,
 	}
 
-	command, err := raw.parseCommand()
+	command, err := raw.ParseCommand()
 	if err != nil {
 		return nil, err
 	}
 
 	execution, err := cluster.RunCommand(
 		command,
-		func(session *CommandSession) {
-			session.stdout = lineflushwriter.New(
-				prefixwriter.New(session.stdout, "{tar} "),
+		func(remoteCommand *RemoteCommand) {
+			remoteCommand.stdout = lineflushwriter.New(
+				prefixwriter.New(remoteCommand.stdout, "{tar} "),
 				logMutex,
 				true,
 			)
 
-			session.stderr = lineflushwriter.New(
-				prefixwriter.New(session.stderr, "{tar} "),
+			remoteCommand.stderr = lineflushwriter.New(
+				prefixwriter.New(remoteCommand.stderr, "{tar} "),
 				logMutex,
 				true,
 			)

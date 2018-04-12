@@ -27,8 +27,8 @@ type Node struct {
 	address address
 	runner  runcmd.Runner
 
-	hbio    *heartbeatIO
-	session *CommandSession
+	hbio          *heartbeatIO
+	remoteCommand *RemoteCommand
 }
 
 type heartbeatIO struct {
@@ -36,9 +36,9 @@ type heartbeatIO struct {
 	stdout io.Reader
 }
 
-func NewNode(addr address) *Node {
+func NewNode(address address) *Node {
 	return &Node{
-		address: addr,
+		address: address,
 	}
 }
 
@@ -287,12 +287,12 @@ func (node *Node) Connect(runnerFactory runnerFactory) error {
 	return nil
 }
 
-func (node *Node) createCommandSession(
+func (node *Node) CreateRemoteCommand(
 	command []string,
 	logLock sync.Locker,
 	outputLock sync.Locker,
-) (*CommandSession, error) {
-	remoteCommand := node.runner.Command(command[0], command[1:]...)
+) (*RemoteCommand, error) {
+	worker := node.runner.Command(command[0], command[1:]...)
 
 	stdoutBackend := io.Writer(os.Stdout)
 	stderrBackend := io.Writer(os.Stderr)
@@ -369,7 +369,7 @@ func (node *Node) createCommandSession(
 		stderr = newLockedWriter(stderr, sharedLock)
 	}
 
-	stdin, err := remoteCommand.StdinPipe()
+	stdin, err := worker.StdinPipe()
 	if err != nil {
 		return nil, hierr.Errorf(
 			err,
@@ -377,9 +377,9 @@ func (node *Node) createCommandSession(
 		)
 	}
 
-	return &CommandSession{
-		node:    node,
-		command: remoteCommand,
+	return &RemoteCommand{
+		node:   node,
+		worker: worker,
 
 		stdin:  stdin,
 		stdout: stdout,

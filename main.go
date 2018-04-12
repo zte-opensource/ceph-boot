@@ -375,7 +375,7 @@ func handleEvaluate(args map[string]interface{}) error {
 		return err
 	}
 
-	raw := &rawCommand{
+	raw := &RawCommand{
 		shell:     shell,
 		sudo:      sudo,
 		command:   command,
@@ -388,10 +388,10 @@ func handleEvaluate(args map[string]interface{}) error {
 
 func run(
 	cluster *Cluster,
-	raw *rawCommand,
+	raw *RawCommand,
 	stdin string,
 ) error {
-	command, err := raw.parseCommand()
+	command, err := raw.ParseCommand()
 	if err != nil {
 		return err
 	}
@@ -436,7 +436,7 @@ func run(
 		)
 	}
 
-	err = execution.wait()
+	err = execution.Wait()
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -532,7 +532,7 @@ func handleSynchronize(args map[string]interface{}) error {
 		)
 	}
 
-	raw := &rawCommand{
+	raw := &RawCommand{
 		shell:     shell,
 		sudo:      sudo,
 		command:   command,
@@ -608,7 +608,7 @@ func upload(
 		)
 	}
 
-	err = receivers.wait()
+	err = receivers.Wait()
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -693,12 +693,12 @@ func connectAndLock(
 	) * time.Millisecond
 
 	clusterConfig := &ClusterConfig{
-		addresses: addresses,
-		lockFile: lockFile,
-		noLock: noLock,
-		noLockFail: noLockFail,
-		noConnFail: noConnFail,
-		hbInterval: heartbeatMilliseconds,
+		addresses:    addresses,
+		lockFile:     lockFile,
+		noLock:       noLock,
+		noLockFail:   noLockFail,
+		noConnFail:   noConnFail,
+		hbInterval:   heartbeatMilliseconds,
 		hbCancelCond: canceler,
 	}
 

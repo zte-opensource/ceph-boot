@@ -579,6 +579,7 @@ func upload(
 
 	debugf(`file upload started into: '%s'`, rootDir)
 
+	// start tar command which waits files on stdin to extract
 	receivers, err := startArchiveReceivers(cluster, rootDir, sudo, serial)
 	if err != nil {
 		return hierr.Errorf(

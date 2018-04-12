@@ -2,9 +2,10 @@ package main
 
 import (
 	"fmt"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"reflect"
+
+	"golang.org/x/crypto/ssh"
 
 	"github.com/reconquest/hierr-go"
 	"github.com/zte-opensource/runcmd"

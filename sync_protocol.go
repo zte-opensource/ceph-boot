@@ -23,7 +23,7 @@ var (
 type syncProtocol struct {
 	// output represents writer, that should be connected to stdins of
 	// all connected nodes.
-	output io.WriteCloser
+	writer io.WriteCloser
 
 	// prefix is a unique string which prefixes every protocol message.
 	prefix string
@@ -42,11 +42,11 @@ func newSyncProtocol() *syncProtocol {
 
 // Init starts protocol and sends HELLO message to the writer. Specified writer
 // will be used in all further communications.
-func (protocol *syncProtocol) Init(output io.WriteCloser) error {
-	protocol.output = prefixwriter.New(output, protocol.prefix+" ")
+func (protocol *syncProtocol) Init(writer io.WriteCloser) error {
+	protocol.writer = prefixwriter.New(writer, protocol.prefix+" ")
 
 	_, err := io.WriteString(
-		protocol.output,
+		protocol.writer,
 		syncProtocolHello+"\n",
 	)
 	if err != nil {
@@ -58,10 +58,10 @@ func (protocol *syncProtocol) Init(output io.WriteCloser) error {
 
 // SendNode sends to the writer serialized representation of specified node as
 // NODE message.
-func (protocol *syncProtocol) SendNode(session *RemoteCommand) error {
+func (protocol *syncProtocol) SendNode(remoteCommand *RemoteCommand) error {
 	_, err := io.WriteString(
-		protocol.output,
-		syncProtocolNode+" "+session.node.String()+"\n",
+		protocol.writer,
+		syncProtocolNode+" "+remoteCommand.node.String()+"\n",
 	)
 	if err != nil {
 		return protocolSuspendEOF(err)
@@ -73,7 +73,7 @@ func (protocol *syncProtocol) SendNode(session *RemoteCommand) error {
 // SendStart sends START message to the writer.
 func (protocol *syncProtocol) SendStart() error {
 	_, err := io.WriteString(
-		protocol.output,
+		protocol.writer,
 		syncProtocolStart+"\n",
 	)
 	if err != nil {
@@ -102,7 +102,7 @@ func (protocol *syncProtocol) SendSync(
 	)
 
 	_, err := io.WriteString(
-		protocol.output,
+		protocol.writer,
 		syncProtocolSync+" "+source.String()+" "+data+"\n",
 	)
 

@@ -80,12 +80,15 @@ received sync messages.
 
 Usage:
   orgalorg -h | --help
+  orgalorg [options] [-v]... (-o <host>...|-s) -L
   orgalorg [options] [-v]... (-o <host>...|-s) -r= -U <files>...
   orgalorg [options] [-v]... (-o <host>...|-s) [-r=] [-g=]... -S <files>...
   orgalorg [options] [-v]... (-o <host>...|-s) [-r=] -C [--] <command>...
-  orgalorg [options] [-v]... (-o <host>...|-s) -L
 
 Operation mode options:
+  -L --lock               Will stop right after locking, e.g. will not try to
+                           do sync whatsoever. Will keep lock until interrupted.
+  -U --upload             Upload files to specified directory and exit.
   -S --sync               Sync.
                            Synchronizes files on the specified hosts via 3-stage
                            process:
@@ -94,9 +97,6 @@ Operation mode options:
                            unpacking files to the intermediate directory
                            (-U to stop here);
                            * launching sync command tool such as gunter;
-  -L --lock               Will stop right after locking, e.g. will not try to
-                           do sync whatsoever. Will keep lock until interrupted.
-  -U --upload             Upload files to specified directory and exit.
   -C --command            Run specified command on all hosts and exit.
 
 Required options:

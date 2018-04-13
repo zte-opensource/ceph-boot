@@ -41,43 +41,6 @@ and ownerships, then upload archive in parallel to the specified hosts and
 unpack it in the temporary directory (see '--root'). No further actions will be
 done until all hosts will unpack the archive.
 
-If '--sync' flag specified, then sync command tool will be launched after upload
-(see '--sync-cmd'). Sync command tool can send stdout and stderr back to the
-orgalorg, but it needs to be compatible with following procotol.
-
-First of all, sync command tool and orgalorg communicate through stdout/stdin.
-All lines, that are not match protocol will be printed untouched.
-
-orgalorg first send hello message to the each running node, where '<prefix>'
-is an unique string
-
-  <prefix> HELLO
-
-All consequent communication must be prefixed by that prefix, followed by
-space.
-
-Then, orgalorg will pass nodes list to each running node by sending 'NODE'
-commands, where '<node>' is unique node identifier:
-
-  <prefix> NODE <node>
-
-After nodes list is exchausted, orgalorg will send 'START' marker, that means
-sync tool may proceed with execution.
-
-  <prefix> START
-
-Then, sync command tool can reply with 'SYNC' messages, that will be
-broadcasted to all connected nodes by orgalorg:
-
-  <prefix> SYNC <description>
-
-Broadcasted sync message will contain source node:
-
-  <prefix> SYNC <node> <description>
-
-Each node can decide, when to wait synchronizations, based on amount of
-received sync messages.
-
 Usage:
   orgalorg -h | --help
   orgalorg [options] [-v]... (-o <host>...|-s) -L
@@ -89,14 +52,6 @@ Operation mode options:
   -L --lock               Will stop right after locking, e.g. will not try to
                            do sync whatsoever. Will keep lock until interrupted.
   -U --upload             Upload files to specified directory and exit.
-  -S --sync               Sync.
-                           Synchronizes files on the specified hosts via 3-stage
-                           process:
-                           * global cluster locking (use -L to stop here);
-                           * tar-ing files on local machine, transmitting and
-                           unpacking files to the intermediate directory
-                           (-U to stop here);
-                           * launching sync command tool such as gunter;
   -C --command            Run specified command on all hosts and exit.
 
 Required options:
@@ -159,10 +114,6 @@ Advanced options:
   -g --arg <arg>          Arguments to pass untouched to the sync command tool.
                            No modification will be done to the passed arg, so
                            take care about escaping.
-  -m --simple             Treat sync command as simple tool, which is not
-                           support specified protocol messages. No sync
-                           is possible in that case and all stdout and stderr
-                           will be passed untouched back to the orgalorg.
   --shell <shell>         Use following shell wrapper. '{}' will be replaced
                            with properly escaped command. If empty, then no
                            shell wrapper will be used. If any args are given
@@ -307,8 +258,6 @@ func main() {
 	case args["--upload"].(bool):
 		fallthrough
 	case args["--lock"].(bool):
-		fallthrough
-	case args["--sync"].(bool):
 		err = handleSynchronize(args)
 	case args["--command"].(bool):
 		err = handleEvaluate(args)
@@ -457,8 +406,6 @@ func handleSynchronize(args map[string]interface{}) error {
 		uploadOnly = args["--upload"].(bool)
 		relative   = args["--relative"].(bool)
 
-		isSimpleCommand = args["--simple"].(bool)
-
 		commandString = args["--sync-cmd"].(string)
 		commandArgs   = args["--arg"].([]string)
 
@@ -543,19 +490,7 @@ func handleSynchronize(args map[string]interface{}) error {
 		return err
 	}
 
-	if isSimpleCommand {
-		return run(cluster, command, serial, stdin)
-	}
-
-	err = runSyncProtocol(cluster, command, serial)
-	if err != nil {
-		return hierr.Errorf(
-			err,
-			`failed to run sync command`,
-		)
-	}
-
-	return nil
+	return run(cluster, command, serial, stdin)
 }
 
 func upload(

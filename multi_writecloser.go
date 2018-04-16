@@ -6,14 +6,14 @@ import (
 	"strings"
 )
 
-type multiWriteCloser struct {
+type MultiWriteCloser struct {
 	writers []io.WriteCloser
 }
 
-func (closer *multiWriteCloser) Write(data []byte) (int, error) {
-	errs := []string{}
+func (mwriter *MultiWriteCloser) Write(data []byte) (int, error) {
+	var errs []string
 
-	for _, writer := range closer.writers {
+	for _, writer := range mwriter.writers {
 		_, err := writer.Write(data)
 		if err != nil && err != io.EOF {
 			errs = append(errs, err.Error())
@@ -31,10 +31,10 @@ func (closer *multiWriteCloser) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
-func (closer *multiWriteCloser) Close() error {
-	errs := []string{}
+func (mwriter *MultiWriteCloser) Close() error {
+	var errs []string
 
-	for _, closer := range closer.writers {
+	for _, closer := range mwriter.writers {
 		err := closer.Close()
 		if err != nil && err != io.EOF {
 			errs = append(errs, err.Error())

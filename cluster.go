@@ -276,7 +276,7 @@ func (cluster *Cluster) RunCommand(
 	}
 
 	return &RemoteExecution{
-		stdin: &multiWriteCloser{stdins},
+		stdin: &MultiWriteCloser{stdins},
 		nodes: cluster.nodes,
 	}, nil
 }

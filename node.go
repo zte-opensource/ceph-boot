@@ -317,8 +317,14 @@ func (node *Node) CreateRemoteCommand(
 	var stderr io.WriteCloser
 	switch {
 	case verbose == verbosityQuiet || format == outputFormatJSON:
-		stdout = lineflushwriter.New(nopCloser{stdoutBackend}, logLock, false)
-		stderr = lineflushwriter.New(nopCloser{stderrBackend}, logLock, false)
+		stdout = lineflushwriter.New(
+			nopCloser{stdoutBackend},
+			logLock,
+			false)
+		stderr = lineflushwriter.New(
+			nopCloser{stderrBackend},
+			logLock,
+			false)
 
 	case verbose == verbosityNormal:
 		stdout = lineflushwriter.New(

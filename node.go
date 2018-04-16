@@ -369,10 +369,10 @@ func (node *Node) CreateRemoteCommand(
 	stderr = &statusBarUpdateWriter{stderr}
 
 	if outputLock != (*sync.Mutex)(nil) {
-		sharedLock := newSharedLock(outputLock, 2)
+		sharedLock := NewSharedLock(outputLock, 2)
 
-		stdout = newLockedWriter(stdout, sharedLock)
-		stderr = newLockedWriter(stderr, sharedLock)
+		stdout = NewLockedWriter(stdout, sharedLock)
+		stderr = NewLockedWriter(stderr, sharedLock)
 	}
 
 	stdin, err := worker.StdinPipe()

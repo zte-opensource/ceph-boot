@@ -105,8 +105,8 @@ func archiveFilesToWriter(
 		status.Bytes.Amount += file.size
 	}
 
-	archive := tar.NewWriter(target)
-	stream := io.MultiWriter(archive, callbackWriter(
+	archiveWriter := tar.NewWriter(target)
+	stream := io.MultiWriter(archiveWriter, CallbackWriter(
 		func(data []byte) (int, error) {
 			status.Written.Amount += len(data)
 
@@ -127,7 +127,7 @@ func archiveFilesToWriter(
 		err = writeFileToArchive(
 			file.path,
 			stream,
-			archive,
+			archiveWriter,
 			workDir,
 			preserveUID,
 			preserveGID,
@@ -145,7 +145,7 @@ func archiveFilesToWriter(
 
 	tracef("closing archive stream, %d files sent", len(files))
 
-	err = archive.Close()
+	err = archiveWriter.Close()
 	if err != nil {
 		return hierr.Errorf(
 			err,

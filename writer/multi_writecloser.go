@@ -1,4 +1,4 @@
-package main
+package writer
 
 import (
 	"fmt"
@@ -10,10 +10,16 @@ type MultiWriteCloser struct {
 	writers []io.WriteCloser
 }
 
-func (mwriter *MultiWriteCloser) Write(data []byte) (int, error) {
+func NewMultiWriteCloser(writers []io.WriteCloser) *MultiWriteCloser {
+	return &MultiWriteCloser{
+		writers,
+	}
+}
+
+func (m *MultiWriteCloser) Write(data []byte) (int, error) {
 	var errs []string
 
-	for _, writer := range mwriter.writers {
+	for _, writer := range m.writers {
 		_, err := writer.Write(data)
 		if err != nil && err != io.EOF {
 			errs = append(errs, err.Error())
@@ -31,10 +37,10 @@ func (mwriter *MultiWriteCloser) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
-func (mwriter *MultiWriteCloser) Close() error {
+func (m *MultiWriteCloser) Close() error {
 	var errs []string
 
-	for _, closer := range mwriter.writers {
+	for _, closer := range m.writers {
 		err := closer.Close()
 		if err != nil && err != io.EOF {
 			errs = append(errs, err.Error())

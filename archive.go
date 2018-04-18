@@ -12,6 +12,7 @@ import (
 	"github.com/reconquest/hierr-go"
 	"github.com/reconquest/lineflushwriter-go"
 	"github.com/reconquest/prefixwriter-go"
+	"github.com/zte-opensource/ceph-boot/writer"
 )
 
 type file struct {
@@ -99,25 +100,25 @@ func archiveFilesToWriter(
 		Total: len(files),
 	}
 
-	setStatus(status)
+	SetStatus(status)
 
 	for _, file := range files {
 		status.Bytes.Amount += file.size
 	}
 
 	archiveWriter := tar.NewWriter(target)
-	stream := io.MultiWriter(archiveWriter, CallbackWriter(
+	stream := io.MultiWriter(archiveWriter, writer.CallbackWriter(
 		func(data []byte) (int, error) {
 			status.Written.Amount += len(data)
 
-			drawStatus()
+			DrawStatus()
 
 			return len(data), nil
 		},
 	))
 
 	for fileIndex, file := range files {
-		infof(
+		Infof(
 			"%5d/%d sending file: '%s'",
 			fileIndex+1,
 			len(files),
@@ -143,7 +144,7 @@ func archiveFilesToWriter(
 		status.Success++
 	}
 
-	tracef("closing archive stream, %d files sent", len(files))
+	Tracef("closing archive stream, %d files sent", len(files))
 
 	err = archiveWriter.Close()
 	if err != nil {
@@ -211,7 +212,7 @@ func writeFileToArchive(
 		header.Gid = int(fileInfo.Sys().(*syscall.Stat_t).Gid)
 	}
 
-	tracef(
+	Tracef(
 		hierr.Errorf(
 			fmt.Sprintf(
 				"size: %d bytes; mode: %o; uid/gid: %d/%d; modtime: %s",

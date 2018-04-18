@@ -1,4 +1,4 @@
-package main
+package writer
 
 type (
 	CallbackWriter func([]byte) (int, error)

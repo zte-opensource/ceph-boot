@@ -1,18 +1,25 @@
-package main
+package writer
 
 import (
 	"encoding/json"
 	"io"
 )
 
-type jsonOutputWriter struct {
+type JsonWriter struct {
 	stream string
 	node   string
-
-	output io.Writer
+	backend io.Writer
 }
 
-func (writer *jsonOutputWriter) Write(data []byte) (int, error) {
+func NewJsonWriter(stream string, node string, backendWriter io.Writer) *JsonWriter {
+	return &JsonWriter{
+		stream: stream,
+		node: node,
+		backend: backendWriter,
+	}
+}
+
+func (writer *JsonWriter) Write(data []byte) (int, error) {
 	if len(data) == 0 {
 		return 0, nil
 	}
@@ -34,7 +41,7 @@ func (writer *jsonOutputWriter) Write(data []byte) (int, error) {
 		return 0, err
 	}
 
-	_, err = writer.output.Write(append(jsonMessage, '\n'))
+	_, err = writer.backend.Write(append(jsonMessage, '\n'))
 	if err != nil {
 		return 0, err
 	}

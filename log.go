@@ -9,23 +9,48 @@ import (
 	"github.com/kovetskiy/lorg"
 	"github.com/reconquest/hierr-go"
 	"github.com/reconquest/loreley"
+	"github.com/zte-opensource/ceph-boot/writer"
+)
+
+type (
+	verbosity int
+)
+
+type (
+	outputFormat int
+)
+
+const (
+	outputFormatText outputFormat = iota
+	outputFormatJSON
+)
+
+const (
+	verbosityQuiet verbosity = iota
+	verbosityNormal
+	verbosityDebug
+	verbosityTrace
 )
 
 var (
+	logger  = lorg.NewLog()
+	verbose = verbosityNormal
+	format  = outputFormatText
+
 	loggerFormattingBasicLength = 0
 )
 
-func setLoggerOutputFormat(logger *lorg.Log, format outputFormat) {
+func SetLoggerOutputFormat(format outputFormat) {
 	if format == outputFormatJSON {
-		logger.SetOutput(&jsonOutputWriter{
-			stream: `stderr`,
-			node:   ``,
-			output: os.Stderr,
-		})
+		logger.SetOutput(writer.NewJsonWriter(
+			"stderr",
+			"",
+			os.Stderr,
+		))
 	}
 }
 
-func setLoggerVerbosity(level verbosity, logger *lorg.Log) {
+func SetLoggerVerbosity(level verbosity) {
 	logger.SetLevel(lorg.LevelWarning)
 
 	switch {
@@ -40,7 +65,7 @@ func setLoggerVerbosity(level verbosity, logger *lorg.Log) {
 	}
 }
 
-func setLoggerStyle(logger *lorg.Log, style lorg.Formatter) {
+func SetLoggerStyle(style lorg.Formatter) {
 	testLogger := lorg.NewLog()
 
 	testLogger.SetFormat(style)
@@ -59,43 +84,43 @@ func setLoggerStyle(logger *lorg.Log, style lorg.Formatter) {
 	logger.SetIndentLines(true)
 }
 
-func tracef(format string, args ...interface{}) {
+func Tracef(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
 	logger.Tracef(`%s`, wrapLines(format, args...))
 
-	drawStatus()
+	DrawStatus()
 }
 
-func traceln(args ...interface{}) {
-	tracef("%s", fmt.Sprint(serializeErrors(args)...))
+func Traceln(args ...interface{}) {
+	Tracef("%s", fmt.Sprint(serializeErrors(args)...))
 }
 
-func debugf(format string, args ...interface{}) {
+func Debugf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
 	logger.Debugf(`%s`, wrapLines(format, args...))
 
-	drawStatus()
+	DrawStatus()
 }
 
-func debugln(args ...interface{}) {
-	debugf("%s", fmt.Sprint(serializeErrors(args)...))
+func Debugln(args ...interface{}) {
+	Debugf("%s", fmt.Sprint(serializeErrors(args)...))
 }
 
-func infof(format string, args ...interface{}) {
+func Infof(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
 	logger.Infof(`%s`, wrapLines(format, args...))
 
-	drawStatus()
+	DrawStatus()
 }
 
-func infoln(args ...interface{}) {
-	infof("%s", fmt.Sprint(serializeErrors(args)...))
+func Infoln(args ...interface{}) {
+	Infof("%s", fmt.Sprint(serializeErrors(args)...))
 }
 
-func warningf(format string, args ...interface{}) {
+func Warningf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
 	if verbose <= verbosityQuiet {
@@ -104,35 +129,35 @@ func warningf(format string, args ...interface{}) {
 
 	logger.Warningf(`%s`, wrapLines(format, args...))
 
-	drawStatus()
+	DrawStatus()
 }
 
-func warningln(args ...interface{}) {
-	warningf("%s", fmt.Sprint(serializeErrors(args)...))
+func Warningln(args ...interface{}) {
+	Warningf("%s", fmt.Sprint(serializeErrors(args)...))
 }
 
-func errorf(format string, args ...interface{}) {
+func Errorf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
 	logger.Errorf(`%s`, wrapLines(format, args...))
 }
 
-func errorln(args ...interface{}) {
-	errorf("%s", fmt.Sprint(serializeErrors(args)...))
+func Errorln(args ...interface{}) {
+	Errorf("%s", fmt.Sprint(serializeErrors(args)...))
 }
 
-func fatalf(format string, args ...interface{}) {
+func Fatalf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	clearStatus()
+	ClearStatus()
 
 	logger.Fatalf(`%s`, wrapLines(format, args...))
 
 	exit(1)
 }
 
-func fatalln(args ...interface{}) {
-	fatalf("%s", fmt.Sprint(serializeErrors(args)...))
+func Fatalln(args ...interface{}) {
+	Fatalf("%s", fmt.Sprint(serializeErrors(args)...))
 }
 
 func wrapLines(format string, values ...interface{}) string {
@@ -156,58 +181,6 @@ func serializeErrors(args []interface{}) []interface{} {
 	}
 
 	return args
-}
-
-func setStatus(status interface{}) {
-	if statusbar == nil {
-		return
-	}
-
-	clearStatus()
-
-	statusbar.SetStatus(status)
-
-	drawStatus()
-}
-
-func shouldDrawStatus() bool {
-	if statusbar == nil {
-		return false
-	}
-
-	if format != outputFormatText {
-		return false
-	}
-
-	if verbose <= verbosityQuiet {
-		return false
-	}
-
-	return true
-}
-
-func drawStatus() {
-	if !shouldDrawStatus() {
-		return
-	}
-
-	err := statusbar.Render(os.Stderr)
-	if err != nil {
-		errorf(
-			"%s", hierr.Errorf(
-				err,
-				`can't draw status bar`,
-			),
-		)
-	}
-}
-
-func clearStatus() {
-	if !shouldDrawStatus() {
-		return
-	}
-
-	statusbar.Clear(os.Stderr)
 }
 
 func serializeError(err error) string {

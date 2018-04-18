@@ -78,7 +78,7 @@ func (rc *RemoteCommand) Wait() error {
 }
 
 func (execution *RemoteExecution) Wait() error {
-	tracef(`waiting %d nodes to finish`, len(execution.nodes))
+	Tracef(`waiting %d nodes to finish`, len(execution.nodes))
 
 	results := make(chan *RemoteCommandResult, 0)
 	for _, node := range execution.nodes {
@@ -105,7 +105,7 @@ func (execution *RemoteExecution) Wait() error {
 		exitCodes = map[int]int{}
 	)
 
-	setStatus(status)
+	SetStatus(status)
 
 	for range execution.nodes {
 		result := <-results
@@ -124,7 +124,7 @@ func (execution *RemoteExecution) Wait() error {
 			status.Fails++
 			status.Total--
 
-			tracef(
+			Tracef(
 				`%s finished with exit code: '%d'`,
 				result.session.node.String(),
 				result.session.exitCode,
@@ -135,7 +135,7 @@ func (execution *RemoteExecution) Wait() error {
 
 		status.Success++
 
-		tracef(
+		Tracef(
 			`%s has successfully finished execution`,
 			result.session.node.String(),
 		)

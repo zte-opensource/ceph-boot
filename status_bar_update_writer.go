@@ -7,11 +7,11 @@ type statusBarUpdateWriter struct {
 }
 
 func (writer *statusBarUpdateWriter) Write(data []byte) (int, error) {
-	clearStatus()
+	ClearStatus()
 
 	written, err := writer.writer.Write(data)
 
-	drawStatus()
+	DrawStatus()
 
 	return written, err
 }

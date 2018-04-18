@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/reconquest/hierr-go"
 	"io"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/reconquest/hierr-go"
+	"github.com/zte-opensource/ceph-boot/writer"
 )
 
 type ClusterConfig struct {
@@ -63,7 +65,7 @@ func (cluster *Cluster) Connect(
 		status.Phase = `connect`
 	}
 
-	setStatus(status)
+	SetStatus(status)
 
 	for _, nodeAddress := range addresses {
 		go func(nodeAddress address) {
@@ -79,7 +81,7 @@ func (cluster *Cluster) Connect(
 
 					if noConnFail {
 						failed = true
-						warningln(err)
+						Warningln(err)
 					} else {
 						errors <- err
 						return
@@ -89,7 +91,7 @@ func (cluster *Cluster) Connect(
 						err = node.Lock(lockFile)
 						if err != nil {
 							if noLockFail {
-								warningln(err)
+								Warningln(err)
 							} else {
 								errors <- err
 								return
@@ -112,7 +114,7 @@ func (cluster *Cluster) Connect(
 					cluster.nodes = append(cluster.nodes, node)
 				}
 
-				debugf(
+				Debugf(
 					`%4d/%d (%d failed) connection %s: %s`,
 					status.Success,
 					status.Total,
@@ -182,7 +184,7 @@ func (cluster *Cluster) RunCommand(
 		}
 	)
 
-	setStatus(status)
+	SetStatus(status)
 
 	type nodeErr struct {
 		err  error
@@ -193,7 +195,7 @@ func (cluster *Cluster) RunCommand(
 	for _, node := range cluster.nodes {
 		go func(node *Node) {
 			pool.run(func() {
-				tracef(
+				Tracef(
 					"%s",
 					hierr.Errorf(
 						command,
@@ -276,7 +278,7 @@ func (cluster *Cluster) RunCommand(
 	}
 
 	return &RemoteExecution{
-		stdin: &MultiWriteCloser{stdins},
+		stdin: writer.NewMultiWriteCloser(stdins),
 		nodes: cluster.nodes,
 	}, nil
 }

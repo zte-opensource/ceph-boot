@@ -20,9 +20,7 @@ import (
 	"golang.org/x/crypto/ssh/terminal"
 
 	"github.com/docopt/docopt-go"
-	"github.com/kovetskiy/lorg"
 	"github.com/mattn/go-shellwords"
-	"github.com/reconquest/barely"
 	"github.com/reconquest/hierr-go"
 	"github.com/reconquest/loreley"
 	"github.com/zte-opensource/runcmd"
@@ -167,26 +165,6 @@ Timeout options:
                            ends. [default: 10000]
 `
 
-type (
-	verbosity int
-)
-
-type (
-	outputFormat int
-)
-
-const (
-	outputFormatText outputFormat = iota
-	outputFormatJSON
-)
-
-const (
-	verbosityQuiet verbosity = iota
-	verbosityNormal
-	verbosityDebug
-	verbosityTrace
-)
-
 const (
 	defaultSSHPort = 22
 
@@ -207,12 +185,7 @@ var (
 )
 
 var (
-	logger  = lorg.NewLog()
-	verbose = verbosityNormal
-	format  = outputFormatText
-
 	pool      *threadPool
-	statusbar *barely.StatusBar
 )
 
 var (
@@ -224,27 +197,30 @@ func main() {
 
 	verbose = parseVerbosity(args)
 
-	setLoggerVerbosity(verbose, logger)
+	SetLoggerVerbosity(verbose)
 
-	format = parseOutputFormat(args)
+	format = outputFormatText
+	if args["--json"].(bool) {
+		format = outputFormatJSON
+	}
 
-	setLoggerOutputFormat(logger, format)
+	SetLoggerOutputFormat(format)
 
 	loreley.Colorize = parseColorMode(args)
 
 	loggerStyle, err := getLoggerTheme(parseTheme("log", args))
 	if err != nil {
-		fatalln(hierr.Errorf(
+		Fatalln(hierr.Errorf(
 			err,
 			`can't use given logger style`,
 		))
 	}
 
-	setLoggerStyle(logger, loggerStyle)
+	SetLoggerStyle(loggerStyle)
 
 	poolSize, err := parseThreadPoolSize(args)
 	if err != nil {
-		errorln(hierr.Errorf(
+		Errorln(hierr.Errorf(
 			err,
 			`--threads given invalid value`,
 		))
@@ -264,16 +240,16 @@ func main() {
 	}
 
 	if err != nil {
-		fatalln(err)
+		Fatalln(err)
 	}
 
-	clearStatus()
+	ClearStatus()
 }
 
 func parseArgs() map[string]interface{} {
 	usage, err := formatUsage(string(usage))
 	if err != nil {
-		fatalln(hierr.Errorf(
+		Fatalln(hierr.Errorf(
 			err,
 			`can't format usage`,
 		))
@@ -375,7 +351,7 @@ func run(
 		}
 	}
 
-	debugf(`commands are running, waiting for finish`)
+	Debugf(`commands are running, waiting for finish`)
 
 	err = execution.stdin.Close()
 	if err != nil {
@@ -431,7 +407,7 @@ func handleSynchronize(args map[string]interface{}) error {
 	}
 
 	if lockOnly {
-		warningf("-L|--lock was passed, waiting for interrupt...")
+		Warningf("-L|--lock was passed, waiting for interrupt...")
 
 		canceler.L.Lock()
 		canceler.Wait()
@@ -440,7 +416,7 @@ func handleSynchronize(args map[string]interface{}) error {
 		return nil
 	}
 
-	debugf(`building files list from %d sources`, len(fileSources))
+	Debugf(`building files list from %d sources`, len(fileSources))
 	filesList, err = getFilesList(relative, fileSources...)
 	if err != nil {
 		return hierr.Errorf(
@@ -449,8 +425,8 @@ func handleSynchronize(args map[string]interface{}) error {
 		)
 	}
 
-	debugf(`file list contains %d files`, len(filesList))
-	tracef(`files to upload: %+v`, filesList)
+	Debugf(`file list contains %d files`, len(filesList))
+	Tracef(`files to upload: %+v`, filesList)
 
 	err = upload(args, cluster, filesList)
 	if err != nil {
@@ -460,13 +436,13 @@ func handleSynchronize(args map[string]interface{}) error {
 		)
 	}
 
-	tracef(`upload done`)
+	Tracef(`upload done`)
 
 	if uploadOnly {
 		return nil
 	}
 
-	tracef(`starting sync tool`)
+	Tracef(`starting sync tool`)
 
 	commandline, err := shellwords.NewParser().Parse(commandString)
 	if err != nil {
@@ -512,7 +488,7 @@ func upload(
 		rootDir = filepath.Join(runsDirectory, generateRunID())
 	}
 
-	debugf(`file upload started into: '%s'`, rootDir)
+	Debugf(`file upload started into: '%s'`, rootDir)
 
 	// start tar command which waits files on stdin to extract
 	receivers, err := startArchiveReceivers(cluster, rootDir, sudo, serial)
@@ -536,7 +512,7 @@ func upload(
 		)
 	}
 
-	tracef(`waiting file upload to finish`)
+	Tracef(`waiting file upload to finish`)
 
 	err = receivers.stdin.Close()
 	if err != nil {
@@ -606,9 +582,9 @@ func connectAndLock(
 		)
 	}
 
-	debugf(`using %d threads`, pool.size)
+	Debugf(`using %d threads`, pool.size)
 
-	debugf(`connecting to %d nodes`, len(addresses))
+	Debugf(`connecting to %d nodes`, len(addresses))
 
 	if lockFile == "" {
 		if rootDir == "" {
@@ -650,9 +626,9 @@ func connectAndLock(
 	}
 
 	if noLock {
-		debugf(`connection established to %d nodes`, len(cluster.nodes))
+		Debugf(`connection established to %d nodes`, len(cluster.nodes))
 	} else {
-		debugf(`global lock acquired on %d nodes`, len(cluster.nodes))
+		Debugf(`global lock acquired on %d nodes`, len(cluster.nodes))
 	}
 
 	return cluster, nil
@@ -840,30 +816,23 @@ func parseAddresses(
 func setupInteractiveMode(args map[string]interface{}) {
 	var (
 		_, hasStdin = args["--stdin"].(string)
-
-		barLock = &sync.Mutex{}
+		theme = args["--bar-format"].(string)
+		light = args["--colors-light"].(bool)
+		dark  = args["--colors-dark"].(bool)
 	)
 
-	barStyle, err := getStatusBarTheme(parseTheme("bar", args))
-	if err != nil {
-		errorln(hierr.Errorf(
-			err,
-			`can't use given status bar style`,
-		))
+	switch {
+	case light:
+		theme = themeLight
+	case dark:
+		theme = themeDark
 	}
 
-	if loreley.HasTTY(int(os.Stderr.Fd())) {
-		statusbar = barely.NewStatusBar(barStyle.Template)
-		statusbar.SetLock(barLock)
-	} else {
-		statusbar = nil
+	SetupStatusBar(theme, hasStdin)
 
+	if ! loreley.HasTTY(int(os.Stderr.Fd())) {
 		sshPasswordPrompt = ""
 		sshPassphrasePrompt = ""
-	}
-
-	if hasStdin && loreley.HasTTY(int(os.Stdin.Fd())) {
-		statusbar = nil
 	}
 }
 
@@ -969,18 +938,6 @@ func parseVerbosity(args map[string]interface{}) verbosity {
 	}
 
 	return verbosityNormal
-}
-
-func parseOutputFormat(
-	args map[string]interface{},
-) outputFormat {
-
-	formatType := outputFormatText
-	if args["--json"].(bool) {
-		formatType = outputFormatJSON
-	}
-
-	return formatType
 }
 
 func parseColorMode(args map[string]interface{}) loreley.ColorizeMode {

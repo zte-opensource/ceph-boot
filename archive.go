@@ -26,7 +26,7 @@ func startArchiveReceivers(
 	rootDir string,
 	sudo bool,
 	serial bool,
-) (*RemoteExecution, error) {
+) error {
 	command := []string{
 		"mkdir", "-p", rootDir, "&&", "tar", "--directory", rootDir, "-x",
 	}
@@ -45,10 +45,10 @@ func startArchiveReceivers(
 
 	command, err := raw.ParseCommand()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	execution, err := cluster.RunCommand(
+	err = cluster.RunCommand(
 		command,
 		func(remoteCommand *RemoteCommand) {
 			remoteCommand.stdout = lineflushwriter.New(
@@ -66,14 +66,14 @@ func startArchiveReceivers(
 		serial,
 	)
 	if err != nil {
-		return nil, hierr.Errorf(
+		return hierr.Errorf(
 			err,
 			`can't start tar extraction command: '%v'`,
 			command,
 		)
 	}
 
-	return execution, nil
+	return nil
 }
 
 func archiveFilesToWriter(

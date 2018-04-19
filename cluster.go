@@ -10,6 +10,7 @@ import (
 	"github.com/reconquest/hierr-go"
 	"github.com/zte-opensource/ceph-boot/status"
 	"github.com/zte-opensource/ceph-boot/writer"
+	"reflect"
 )
 
 type ClusterConfig struct {
@@ -25,6 +26,7 @@ type ClusterConfig struct {
 type Cluster struct {
 	config ClusterConfig
 	nodes  []*Node
+	stdin io.WriteCloser
 }
 
 func NewCluster(config *ClusterConfig) *Cluster {
@@ -158,7 +160,7 @@ func (cluster *Cluster) RunCommand(
 	command []string,
 	setupCallback func(*RemoteCommand),
 	serial bool,
-) (*RemoteExecution, error) {
+) error {
 	var (
 		stdins []io.WriteCloser
 
@@ -270,7 +272,7 @@ func (cluster *Cluster) RunCommand(
 	for range cluster.nodes {
 		err := <-errors
 		if err != nil {
-			return nil, hierr.Errorf(
+			return hierr.Errorf(
 				err.err,
 				`%s remote execution failed`,
 				err.node,
@@ -278,8 +280,105 @@ func (cluster *Cluster) RunCommand(
 		}
 	}
 
-	return &RemoteExecution{
-		stdin: writer.NewMultiWriteCloser(stdins),
-		nodes: cluster.nodes,
-	}, nil
+	cluster.stdin = writer.NewMultiWriteCloser(stdins)
+
+	return nil
+}
+
+func (cluster *Cluster) Wait() error {
+	status.Tracef(`waiting %d nodes to finish`, len(cluster.nodes))
+
+	results := make(chan *RemoteCommandResult, 0)
+	for _, node := range cluster.nodes {
+		go func(rc *RemoteCommand) {
+			results <- &RemoteCommandResult{rc, rc.Wait()}
+		}(node.remoteCommand)
+	}
+
+	executionErrors := fmt.Errorf(
+		`commands are exited with non-zero code`,
+	)
+
+	var (
+		stat = &struct {
+			Phase   string
+			Total   int
+			Fails   int
+			Success int
+		}{
+			Phase: `wait`,
+			Total: len(cluster.nodes),
+		}
+
+		exitCodes = map[int]int{}
+	)
+
+	status.SetStatus(stat)
+
+	for range cluster.nodes {
+		result := <-results
+		if result.err != nil {
+			exitCodes[result.rc.exitCode]++
+
+			executionErrors = hierr.Push(
+				executionErrors,
+				hierr.Errorf(
+					result.err,
+					`%s has finished with error`,
+					result.rc.node.String(),
+				),
+			)
+
+			stat.Fails++
+			stat.Total--
+
+			status.Tracef(
+				`%s finished with exit code: '%d'`,
+				result.rc.node.String(),
+				result.rc.exitCode,
+			)
+
+			continue
+		}
+
+		stat.Success++
+
+		status.Tracef(
+			`%s has successfully finished execution`,
+			result.rc.node.String(),
+		)
+	}
+
+	if stat.Fails > 0 {
+		if stat.Fails == len(cluster.nodes) {
+			exitCodesValue := reflect.ValueOf(exitCodes)
+
+			topError := fmt.Errorf(
+				`commands are failed on all %d nodes`,
+				len(cluster.nodes),
+			)
+
+			for _, key := range exitCodesValue.MapKeys() {
+				topError = hierr.Push(
+					topError,
+					fmt.Sprintf(
+						`code %d (%d nodes)`,
+						key.Int(),
+						exitCodesValue.MapIndex(key).Int(),
+					),
+				)
+			}
+
+			return topError
+		}
+
+		return hierr.Errorf(
+			executionErrors,
+			`commands are failed on %d out of %d nodes`,
+			stat.Fails,
+			len(cluster.nodes),
+		)
+	}
+
+	return nil
 }

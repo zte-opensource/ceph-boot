@@ -357,7 +357,7 @@ func run(
 	serial bool,
 	stdin string,
 ) error {
-	execution, err := cluster.RunCommand(command, nil, serial)
+	err := cluster.RunCommand(command, nil, serial)
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -378,7 +378,7 @@ func run(
 			)
 		}
 
-		_, err = io.Copy(execution.stdin, inputFile)
+		_, err = io.Copy(cluster.stdin, inputFile)
 		if err != nil {
 			return hierr.Errorf(
 				err,
@@ -389,7 +389,7 @@ func run(
 
 	status.Debugf(`commands are running, waiting for finish`)
 
-	err = execution.stdin.Close()
+	err = cluster.stdin.Close()
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -397,7 +397,7 @@ func run(
 		)
 	}
 
-	err = execution.Wait()
+	err = cluster.Wait()
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -527,7 +527,7 @@ func upload(
 	status.Debugf(`file upload started into: '%s'`, rootDir)
 
 	// start tar command which waits files on stdin to extract
-	receivers, err := startArchiveReceivers(cluster, rootDir, sudo, serial)
+	err := startArchiveReceivers(cluster, rootDir, sudo, serial)
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -536,7 +536,7 @@ func upload(
 	}
 
 	err = archiveFilesToWriter(
-		receivers.stdin,
+		cluster.stdin,
 		filesList,
 		preserveUID,
 		preserveGID,
@@ -550,7 +550,7 @@ func upload(
 
 	status.Tracef(`waiting file upload to finish`)
 
-	err = receivers.stdin.Close()
+	err = cluster.stdin.Close()
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -558,7 +558,7 @@ func upload(
 		)
 	}
 
-	err = receivers.Wait()
+	err = cluster.Wait()
 	if err != nil {
 		return hierr.Errorf(
 			err,

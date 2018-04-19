@@ -1,4 +1,4 @@
-package main
+package status
 
 import (
 	"bytes"
@@ -12,37 +12,16 @@ import (
 	"github.com/zte-opensource/ceph-boot/writer"
 )
 
-type (
-	verbosity int
-)
-
-type (
-	outputFormat int
-)
-
-const (
-	outputFormatText outputFormat = iota
-	outputFormatJSON
-)
-
-const (
-	verbosityQuiet verbosity = iota
-	verbosityNormal
-	verbosityDebug
-	verbosityTrace
-)
-
 var (
-	logger  = lorg.NewLog()
-	verbose = verbosityNormal
-	format  = outputFormatText
-
+	Logger                      = lorg.NewLog()
 	loggerFormattingBasicLength = 0
 )
 
-func SetLoggerOutputFormat(format outputFormat) {
-	if format == outputFormatJSON {
-		logger.SetOutput(writer.NewJsonWriter(
+func SetLoggerOutputFormat(f outputFormat) {
+	Conf.Format = f
+
+	if Conf.Format == OutputFormatJSON {
+		Logger.SetOutput(writer.NewJsonWriter(
 			"stderr",
 			"",
 			os.Stderr,
@@ -50,18 +29,20 @@ func SetLoggerOutputFormat(format outputFormat) {
 	}
 }
 
-func SetLoggerVerbosity(level verbosity) {
-	logger.SetLevel(lorg.LevelWarning)
+func SetLoggerVerbosity(v verbosity) {
+	Conf.Verbose = v
+
+	Logger.SetLevel(lorg.LevelWarning)
 
 	switch {
-	case level >= verbosityTrace:
-		logger.SetLevel(lorg.LevelTrace)
+	case v >= VerbosityTrace:
+		Logger.SetLevel(lorg.LevelTrace)
 
-	case level >= verbosityDebug:
-		logger.SetLevel(lorg.LevelDebug)
+	case v >= VerbosityDebug:
+		Logger.SetLevel(lorg.LevelDebug)
 
-	case level >= verbosityNormal:
-		logger.SetLevel(lorg.LevelInfo)
+	case v >= VerbosityNormal:
+		Logger.SetLevel(lorg.LevelInfo)
 	}
 }
 
@@ -80,14 +61,14 @@ func SetLoggerStyle(style lorg.Formatter) {
 		"\n",
 	))
 
-	logger.SetFormat(style)
-	logger.SetIndentLines(true)
+	Logger.SetFormat(style)
+	Logger.SetIndentLines(true)
 }
 
 func Tracef(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	logger.Tracef(`%s`, wrapLines(format, args...))
+	Logger.Tracef(`%s`, wrapLines(format, args...))
 
 	DrawStatus()
 }
@@ -99,7 +80,7 @@ func Traceln(args ...interface{}) {
 func Debugf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	logger.Debugf(`%s`, wrapLines(format, args...))
+	Logger.Debugf(`%s`, wrapLines(format, args...))
 
 	DrawStatus()
 }
@@ -111,7 +92,7 @@ func Debugln(args ...interface{}) {
 func Infof(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	logger.Infof(`%s`, wrapLines(format, args...))
+	Logger.Infof(`%s`, wrapLines(format, args...))
 
 	DrawStatus()
 }
@@ -123,11 +104,11 @@ func Infoln(args ...interface{}) {
 func Warningf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	if verbose <= verbosityQuiet {
+	if Conf.Verbose <= VerbosityQuiet {
 		return
 	}
 
-	logger.Warningf(`%s`, wrapLines(format, args...))
+	Logger.Warningf(`%s`, wrapLines(format, args...))
 
 	DrawStatus()
 }
@@ -139,7 +120,7 @@ func Warningln(args ...interface{}) {
 func Errorf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	logger.Errorf(`%s`, wrapLines(format, args...))
+	Logger.Errorf(`%s`, wrapLines(format, args...))
 }
 
 func Errorln(args ...interface{}) {
@@ -151,9 +132,9 @@ func Fatalf(format string, args ...interface{}) {
 
 	ClearStatus()
 
-	logger.Fatalf(`%s`, wrapLines(format, args...))
+	Logger.Fatalf(`%s`, wrapLines(format, args...))
 
-	exit(1)
+	os.Exit(1)
 }
 
 func Fatalln(args ...interface{}) {
@@ -184,7 +165,7 @@ func serializeErrors(args []interface{}) []interface{} {
 }
 
 func serializeError(err error) string {
-	if format == outputFormatText {
+	if Conf.Format == OutputFormatText {
 		return fmt.Sprint(err)
 	}
 

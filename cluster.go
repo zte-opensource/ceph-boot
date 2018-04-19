@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/reconquest/hierr-go"
+	"github.com/zte-opensource/ceph-boot/status"
 	"github.com/zte-opensource/ceph-boot/writer"
 )
 
@@ -51,7 +52,7 @@ func (cluster *Cluster) Connect(
 	errors := make(chan error, 0)
 	nodeAddMutex := &sync.Mutex{}
 
-	status := &struct {
+	stat := &struct {
 		Phase   string
 		Total   int64
 		Fails   int64
@@ -62,10 +63,10 @@ func (cluster *Cluster) Connect(
 	}
 
 	if noLock {
-		status.Phase = `connect`
+		stat.Phase = `connect`
 	}
 
-	SetStatus(status)
+	status.SetStatus(stat)
 
 	for _, nodeAddress := range addresses {
 		go func(nodeAddress address) {
@@ -76,12 +77,12 @@ func (cluster *Cluster) Connect(
 
 				err := node.Connect(runnerFactory)
 				if err != nil {
-					atomic.AddInt64(&status.Fails, 1)
-					atomic.AddInt64(&status.Total, -1)
+					atomic.AddInt64(&stat.Fails, 1)
+					atomic.AddInt64(&stat.Total, -1)
 
 					if noConnFail {
 						failed = true
-						Warningln(err)
+						status.Warningln(err)
 					} else {
 						errors <- err
 						return
@@ -91,7 +92,7 @@ func (cluster *Cluster) Connect(
 						err = node.Lock(lockFile)
 						if err != nil {
 							if noLockFail {
-								Warningln(err)
+								status.Warningln(err)
 							} else {
 								errors <- err
 								return
@@ -106,7 +107,7 @@ func (cluster *Cluster) Connect(
 				if failed {
 					textStatus = "failed"
 				} else {
-					atomic.AddInt64(&status.Success, 1)
+					atomic.AddInt64(&stat.Success, 1)
 
 					nodeAddMutex.Lock()
 					defer nodeAddMutex.Unlock()
@@ -114,11 +115,11 @@ func (cluster *Cluster) Connect(
 					cluster.nodes = append(cluster.nodes, node)
 				}
 
-				Debugf(
+				status.Debugf(
 					`%4d/%d (%d failed) connection %s: %s`,
-					status.Success,
-					status.Total,
-					status.Fails,
+					stat.Success,
+					stat.Total,
+					stat.Fails,
 					textStatus,
 					nodeAddress,
 				)
@@ -171,7 +172,7 @@ func (cluster *Cluster) RunCommand(
 	}
 
 	var (
-		status = &struct {
+		stat = &struct {
 			sync.Mutex
 
 			Phase   string
@@ -184,7 +185,7 @@ func (cluster *Cluster) RunCommand(
 		}
 	)
 
-	SetStatus(status)
+	status.SetStatus(stat)
 
 	type nodeErr struct {
 		err  error
@@ -195,7 +196,7 @@ func (cluster *Cluster) RunCommand(
 	for _, node := range cluster.nodes {
 		go func(node *Node) {
 			pool.run(func() {
-				Tracef(
+				status.Tracef(
 					"%s",
 					hierr.Errorf(
 						command,
@@ -213,11 +214,11 @@ func (cluster *Cluster) RunCommand(
 				if err != nil {
 					errors <- &nodeErr{err, node}
 
-					status.Lock()
-					defer status.Unlock()
+					stat.Lock()
+					defer stat.Unlock()
 
-					status.Total--
-					status.Fails++
+					stat.Total--
+					stat.Fails++
 
 					return
 				}
@@ -240,11 +241,11 @@ func (cluster *Cluster) RunCommand(
 						node,
 					}
 
-					status.Lock()
-					defer status.Unlock()
+					stat.Lock()
+					defer stat.Unlock()
 
-					status.Total--
-					status.Fails++
+					stat.Total--
+					stat.Fails++
 
 					return
 				}
@@ -256,10 +257,10 @@ func (cluster *Cluster) RunCommand(
 
 				stdins = append(stdins, remoteCommand.stdin)
 
-				status.Lock()
-				defer status.Unlock()
+				stat.Lock()
+				defer stat.Unlock()
 
-				status.Success++
+				stat.Success++
 
 				errors <- nil
 			})

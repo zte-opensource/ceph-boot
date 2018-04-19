@@ -1,4 +1,4 @@
-package main
+package status
 
 import (
 	"os"
@@ -9,14 +9,10 @@ import (
 	"github.com/reconquest/loreley"
 )
 
-var (
-	statusBar *barely.StatusBar
-)
-
-func SetupStatusBar(theme string, hasStdin bool) {
+func SetupStatusBar() {
 	barLock := &sync.Mutex{}
 
-	barStyle, err := getStatusBarTheme(theme)
+	barStyle, err := getStatusBarTheme(Conf.Theme)
 	if err != nil {
 		Errorln(hierr.Errorf(
 			err,
@@ -31,7 +27,7 @@ func SetupStatusBar(theme string, hasStdin bool) {
 		statusBar = nil
 	}
 
-	if hasStdin && loreley.HasTTY(int(os.Stdin.Fd())) {
+	if Conf.HasStdin && loreley.HasTTY(int(os.Stdin.Fd())) {
 		statusBar = nil
 	}
 }
@@ -53,11 +49,11 @@ func shouldDrawStatus() bool {
 		return false
 	}
 
-	if format != outputFormatText {
+	if Conf.Format != OutputFormatText {
 		return false
 	}
 
-	if verbose <= verbosityQuiet {
+	if Conf.Verbose <= VerbosityQuiet {
 		return false
 	}
 

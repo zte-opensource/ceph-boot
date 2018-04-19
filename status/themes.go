@@ -1,4 +1,4 @@
-package main
+package status
 
 import (
 	"fmt"
@@ -9,9 +9,9 @@ import (
 )
 
 const (
-	themeDefault = `default`
-	themeDark    = `dark`
-	themeLight   = `light`
+	ThemeDefault = `default`
+	ThemeDark    = `dark`
+	ThemeLight   = `light`
 )
 
 var (
@@ -33,17 +33,17 @@ var (
 		`{end}`
 
 	statusBarThemes = map[string]string{
-		themeDark: fmt.Sprintf(
+		ThemeDark: fmt.Sprintf(
 			statusBarThemeTemplate,
 			99, 7, 22, 1, 1, 25, 237, 46, 15, 214, -1, 140,
 		),
 
-		themeLight: fmt.Sprintf(
+		ThemeLight: fmt.Sprintf(
 			statusBarThemeTemplate,
 			99, 7, 22, 1, 1, 64, 254, 106, 16, 9, -1, 140,
 		),
 
-		themeDefault: fmt.Sprintf(
+		ThemeDefault: fmt.Sprintf(
 			statusBarThemeTemplate,
 			234, 255, 22, 1, 1, 19, 245, 85, 255, 160, -1, 140,
 		),
@@ -52,7 +52,7 @@ var (
 	logFormat = `${time} ${level:[%s]:right:true} %s`
 )
 
-func getLoggerTheme(theme string) (lorg.Formatter, error) {
+func GetLoggerTheme(theme string) (lorg.Formatter, error) {
 	switch theme {
 	case "default":
 		return colorgful.ApplyDefaultTheme(
@@ -85,23 +85,4 @@ func getStatusBarTheme(theme string) (*loreley.Style, error) {
 	}
 
 	return style, nil
-}
-
-func parseTheme(target string, args map[string]interface{}) string {
-	var (
-		theme = args["--"+target+"-format"].(string)
-		light = args["--colors-light"].(bool)
-		dark  = args["--colors-dark"].(bool)
-	)
-
-	switch {
-	case light:
-		return themeLight
-
-	case dark:
-		return themeDark
-
-	default:
-		return theme
-	}
 }

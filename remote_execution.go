@@ -9,6 +9,7 @@ import (
 
 	"github.com/reconquest/hierr-go"
 	"github.com/zte-opensource/runcmd"
+	"github.com/zte-opensource/ceph-boot/status"
 )
 
 type RemoteCommand struct {
@@ -78,7 +79,7 @@ func (rc *RemoteCommand) Wait() error {
 }
 
 func (execution *RemoteExecution) Wait() error {
-	Tracef(`waiting %d nodes to finish`, len(execution.nodes))
+	status.Tracef(`waiting %d nodes to finish`, len(execution.nodes))
 
 	results := make(chan *RemoteCommandResult, 0)
 	for _, node := range execution.nodes {
@@ -92,7 +93,7 @@ func (execution *RemoteExecution) Wait() error {
 	)
 
 	var (
-		status = &struct {
+		stat = &struct {
 			Phase   string
 			Total   int
 			Fails   int
@@ -105,7 +106,7 @@ func (execution *RemoteExecution) Wait() error {
 		exitCodes = map[int]int{}
 	)
 
-	SetStatus(status)
+	status.SetStatus(stat)
 
 	for range execution.nodes {
 		result := <-results
@@ -121,10 +122,10 @@ func (execution *RemoteExecution) Wait() error {
 				),
 			)
 
-			status.Fails++
-			status.Total--
+			stat.Fails++
+			stat.Total--
 
-			Tracef(
+			status.Tracef(
 				`%s finished with exit code: '%d'`,
 				result.session.node.String(),
 				result.session.exitCode,
@@ -133,16 +134,16 @@ func (execution *RemoteExecution) Wait() error {
 			continue
 		}
 
-		status.Success++
+		stat.Success++
 
-		Tracef(
+		status.Tracef(
 			`%s has successfully finished execution`,
 			result.session.node.String(),
 		)
 	}
 
-	if status.Fails > 0 {
-		if status.Fails == len(execution.nodes) {
+	if stat.Fails > 0 {
+		if stat.Fails == len(execution.nodes) {
 			exitCodesValue := reflect.ValueOf(exitCodes)
 
 			topError := fmt.Errorf(
@@ -167,7 +168,7 @@ func (execution *RemoteExecution) Wait() error {
 		return hierr.Errorf(
 			executionErrors,
 			`commands are failed on %d out of %d nodes`,
-			status.Fails,
+			stat.Fails,
 			len(execution.nodes),
 		)
 	}

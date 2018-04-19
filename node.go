@@ -14,6 +14,7 @@ import (
 	"github.com/reconquest/prefixwriter-go"
 	"github.com/zte-opensource/runcmd"
 	"github.com/zte-opensource/ceph-boot/writer"
+	"github.com/zte-opensource/ceph-boot/status"
 )
 
 const (
@@ -57,7 +58,7 @@ func (node *Node) Lock(filename string) error {
 
 	logMutex := &sync.Mutex{}
 
-	Traceln(hierr.Errorf(
+	status.Traceln(hierr.Errorf(
 		lockCommandLine,
 		`%s running lock command`,
 		node,
@@ -78,7 +79,7 @@ func (node *Node) Lock(filename string) error {
 
 	stderr := lineflushwriter.New(
 		prefixwriter.New(
-			writer.NewDebugWriteCloser(logger),
+			writer.NewDebugWriteCloser(status.Logger),
 			fmt.Sprintf("%s {flock} <stderr> ", node.String()),
 		),
 		logMutex,
@@ -134,7 +135,7 @@ func (node *Node) Lock(filename string) error {
 		)
 	}
 
-	Tracef(`lock acquired: '%s' on '%s'`, node, filename)
+	status.Tracef(`lock acquired: '%s' on '%s'`, node, filename)
 
 	node.hbio = &heartbeatIO{
 		stdin:  stdin,
@@ -174,10 +175,10 @@ func (node *Node) Heartbeat(
 		<-abort
 
 		if remote, ok := node.runner.(*runcmd.Remote); ok {
-			Tracef("%s closing connection", node.String())
+			status.Tracef("%s closing connection", node.String())
 			err := remote.CloseConnection()
 			if err != nil {
-				Warningf(
+				status.Warningf(
 					"%s",
 					hierr.Errorf(
 						err,
@@ -199,7 +200,7 @@ func (node *Node) Heartbeat(
 	for {
 		_, err := io.WriteString(node.hbio.stdin, heartbeatPing+"\n")
 		if err != nil {
-			Errorf(
+			status.Errorf(
 				"%s",
 				hierr.Errorf(
 					err,
@@ -221,7 +222,7 @@ func (node *Node) Heartbeat(
 
 		ping, err := bufio.NewReader(node.hbio.stdout).ReadString('\n')
 		if err != nil {
-			Errorf(
+			status.Errorf(
 				"%s",
 				hierr.Errorf(
 					err,
@@ -234,7 +235,7 @@ func (node *Node) Heartbeat(
 		}
 
 		if strings.TrimSpace(ping) != heartbeatPing {
-			Errorf(
+			status.Errorf(
 				`%s received unexpected heartbeat ping: '%s'`,
 				node.String(),
 				ping,
@@ -243,12 +244,12 @@ func (node *Node) Heartbeat(
 			finish(2)
 		}
 
-		Tracef(`%s heartbeat`, node.String())
+		status.Tracef(`%s heartbeat`, node.String())
 	}
 }
 
 func (node *Node) Connect(runnerFactory runnerFactory) error {
-	Tracef(`connecting to address: '%s'`, node.address)
+	status.Tracef(`connecting to address: '%s'`, node.address)
 
 	done := make(chan struct{}, 0)
 
@@ -258,7 +259,7 @@ func (node *Node) Connect(runnerFactory runnerFactory) error {
 			return
 
 		case <-time.After(longConnectionWarningTimeout):
-			Warningf(
+			status.Warningf(
 				"still connecting to address after %s: %s",
 				longConnectionWarningTimeout,
 				node.address,
@@ -298,7 +299,7 @@ func (node *Node) CreateRemoteCommand(
 	stdoutBackend := io.Writer(os.Stdout)
 	stderrBackend := io.Writer(os.Stderr)
 
-	if format == outputFormatJSON {
+	if status.Conf.Format == status.OutputFormatJSON {
 		stdoutBackend = writer.NewJsonWriter(
 			"stdout",
 			node.String(),
@@ -315,7 +316,7 @@ func (node *Node) CreateRemoteCommand(
 	var stdout io.WriteCloser
 	var stderr io.WriteCloser
 	switch {
-	case verbose == verbosityQuiet || format == outputFormatJSON:
+	case status.Conf.Verbose == status.VerbosityQuiet || status.Conf.Format == status.OutputFormatJSON:
 		stdout = lineflushwriter.New(
 			writer.NewNopWriteCloser(stdoutBackend),
 			logLock,
@@ -325,7 +326,7 @@ func (node *Node) CreateRemoteCommand(
 			logLock,
 			false)
 
-	case verbose == verbosityNormal:
+	case status.Conf.Verbose == status.VerbosityNormal:
 		stdout = lineflushwriter.New(
 			prefixwriter.New(
 				writer.NewNopWriteCloser(stdoutBackend),
@@ -347,7 +348,7 @@ func (node *Node) CreateRemoteCommand(
 	default:
 		stdout = lineflushwriter.New(
 			prefixwriter.New(
-				writer.NewDebugWriteCloser(logger),
+				writer.NewDebugWriteCloser(status.Logger),
 				"{cmd} <stdout> "+node.String()+" ",
 			),
 			logLock,
@@ -356,7 +357,7 @@ func (node *Node) CreateRemoteCommand(
 
 		stderr = lineflushwriter.New(
 			prefixwriter.New(
-				writer.NewDebugWriteCloser(logger),
+				writer.NewDebugWriteCloser(status.Logger),
 				"{cmd} <stderr> "+node.String()+" ",
 			),
 			logLock,
@@ -364,8 +365,8 @@ func (node *Node) CreateRemoteCommand(
 		)
 	}
 
-	stdout = &statusBarUpdateWriter{stdout}
-	stderr = &statusBarUpdateWriter{stderr}
+	stdout = status.NewStatusBarWriteCloser(stdout)
+	stderr = status.NewStatusBarWriteCloser(stderr)
 
 	if outputLock != (*sync.Mutex)(nil) {
 		sharedLock := writer.NewSharedLock(outputLock, 2)

@@ -13,7 +13,7 @@ import (
 	"github.com/reconquest/lineflushwriter-go"
 	"github.com/reconquest/prefixwriter-go"
 	"github.com/zte-opensource/ceph-boot/writer"
-	"github.com/zte-opensource/ceph-boot/status"
+	"github.com/zte-opensource/ceph-boot/log"
 )
 
 type file struct {
@@ -31,7 +31,7 @@ func startArchiveReceivers(
 		"mkdir", "-p", rootDir, "&&", "tar", "--directory", rootDir, "-x",
 	}
 
-	if status.Conf.Verbose >= status.VerbosityDebug {
+	if log.Conf.Verbose >= log.VerbosityDebug {
 		command = append(command, `--verbose`)
 	}
 
@@ -101,7 +101,7 @@ func archiveFilesToWriter(
 		Total: len(files),
 	}
 
-	status.SetStatus(stat)
+	log.SetStatus(stat)
 
 	for _, file := range files {
 		stat.Bytes.Amount += file.size
@@ -112,14 +112,14 @@ func archiveFilesToWriter(
 		func(data []byte) (int, error) {
 			stat.Written.Amount += len(data)
 
-			status.DrawStatus()
+			log.DrawStatus()
 
 			return len(data), nil
 		},
 	))
 
 	for fileIndex, file := range files {
-		status.Infof(
+		log.Infof(
 			"%5d/%d sending file: '%s'",
 			fileIndex+1,
 			len(files),
@@ -145,7 +145,7 @@ func archiveFilesToWriter(
 		stat.Success++
 	}
 
-	status.Tracef("closing archive stream, %d files sent", len(files))
+	log.Tracef("closing archive stream, %d files sent", len(files))
 
 	err = archiveWriter.Close()
 	if err != nil {
@@ -213,7 +213,7 @@ func writeFileToArchive(
 		header.Gid = int(fileInfo.Sys().(*syscall.Stat_t).Gid)
 	}
 
-	status.Tracef(
+	log.Tracef(
 		hierr.Errorf(
 			fmt.Sprintf(
 				"size: %d bytes; mode: %o; uid/gid: %d/%d; modtime: %s",

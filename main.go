@@ -24,7 +24,7 @@ import (
 	"github.com/reconquest/hierr-go"
 	"github.com/reconquest/loreley"
 	"github.com/zte-opensource/runcmd"
-	"github.com/zte-opensource/ceph-boot/status"
+	"github.com/zte-opensource/ceph-boot/log"
 )
 
 var version = "[manual build]"
@@ -207,49 +207,49 @@ func main() {
 		barTheme = args["--bar-format"].(string)
 	)
 
-	verbose := status.VerbosityNormal
+	verbose := log.VerbosityNormal
 	if quiet {
-		verbose = status.VerbosityQuiet
+		verbose = log.VerbosityQuiet
 	}
 	if level == 1 {
-		verbose = status.VerbosityDebug
+		verbose = log.VerbosityDebug
 	}
 	if level > 1 {
-		verbose = status.VerbosityTrace
+		verbose = log.VerbosityTrace
 	}
 
-	format := status.OutputFormatText
+	format := log.OutputFormatText
 	if args["--json"].(bool) {
-		format = status.OutputFormatJSON
+		format = log.OutputFormatJSON
 	}
 
-	status.SetLoggerVerbosity(verbose)
-	status.SetLoggerOutputFormat(format)
+	log.SetLoggerVerbosity(verbose)
+	log.SetLoggerOutputFormat(format)
 
 	loreley.Colorize = parseColorMode(args)
 
 	switch {
 	case light:
-		logTheme = status.ThemeLight
-		barTheme = status.ThemeLight
+		logTheme = log.ThemeLight
+		barTheme = log.ThemeLight
 	case dark:
-		logTheme = status.ThemeDark
-		barTheme = status.ThemeDark
+		logTheme = log.ThemeDark
+		barTheme = log.ThemeDark
 	}
 
-	loggerStyle, err := status.GetLoggerTheme(logTheme)
+	loggerStyle, err := log.GetLoggerTheme(logTheme)
 	if err != nil {
-		status.Fatalln(hierr.Errorf(
+		log.Fatalln(hierr.Errorf(
 			err,
 			`can't use given logger style`,
 		))
 	}
 
-	status.SetLoggerStyle(loggerStyle)
+	log.SetLoggerStyle(loggerStyle)
 
-	status.Conf.Theme = barTheme
-	status.Conf.HasStdin = hasStdin
-	status.SetupStatusBar()
+	log.Conf.Theme = barTheme
+	log.Conf.HasStdin = hasStdin
+	log.SetupStatusBar()
 
 	if ! loreley.HasTTY(int(os.Stderr.Fd())) {
 		sshPasswordPrompt = ""
@@ -258,7 +258,7 @@ func main() {
 
 	poolSize, err := parseThreadPoolSize(args)
 	if err != nil {
-		status.Errorln(hierr.Errorf(
+		log.Errorln(hierr.Errorf(
 			err,
 			`--threads given invalid value`,
 		))
@@ -276,16 +276,16 @@ func main() {
 	}
 
 	if err != nil {
-		status.Fatalln(err)
+		log.Fatalln(err)
 	}
 
-	status.ClearStatus()
+	log.ClearStatus()
 }
 
 func parseArgs() map[string]interface{} {
 	usage, err := formatUsage(string(usage))
 	if err != nil {
-		status.Fatalln(hierr.Errorf(
+		log.Fatalln(hierr.Errorf(
 			err,
 			`can't format usage`,
 		))
@@ -387,7 +387,7 @@ func run(
 		}
 	}
 
-	status.Debugf(`commands are running, waiting for finish`)
+	log.Debugf(`commands are running, waiting for finish`)
 
 	err = cluster.stdin.Close()
 	if err != nil {
@@ -443,7 +443,7 @@ func handleSynchronize(args map[string]interface{}) error {
 	}
 
 	if lockOnly {
-		status.Warningf("-L|--lock was passed, waiting for interrupt...")
+		log.Warningf("-L|--lock was passed, waiting for interrupt...")
 
 		canceler.L.Lock()
 		canceler.Wait()
@@ -452,7 +452,7 @@ func handleSynchronize(args map[string]interface{}) error {
 		return nil
 	}
 
-	status.Debugf(`building files list from %d sources`, len(fileSources))
+	log.Debugf(`building files list from %d sources`, len(fileSources))
 	filesList, err = getFilesList(relative, fileSources...)
 	if err != nil {
 		return hierr.Errorf(
@@ -461,8 +461,8 @@ func handleSynchronize(args map[string]interface{}) error {
 		)
 	}
 
-	status.Debugf(`file list contains %d files`, len(filesList))
-	status.Tracef(`files to upload: %+v`, filesList)
+	log.Debugf(`file list contains %d files`, len(filesList))
+	log.Tracef(`files to upload: %+v`, filesList)
 
 	err = upload(args, cluster, filesList)
 	if err != nil {
@@ -472,13 +472,13 @@ func handleSynchronize(args map[string]interface{}) error {
 		)
 	}
 
-	status.Tracef(`upload done`)
+	log.Tracef(`upload done`)
 
 	if uploadOnly {
 		return nil
 	}
 
-	status.Tracef(`starting sync tool`)
+	log.Tracef(`starting sync tool`)
 
 	commandline, err := shellwords.NewParser().Parse(commandString)
 	if err != nil {
@@ -524,7 +524,7 @@ func upload(
 		rootDir = filepath.Join(runsDirectory, generateRunID())
 	}
 
-	status.Debugf(`file upload started into: '%s'`, rootDir)
+	log.Debugf(`file upload started into: '%s'`, rootDir)
 
 	// start tar command which waits files on stdin to extract
 	err := startArchiveReceivers(cluster, rootDir, sudo, serial)
@@ -548,7 +548,7 @@ func upload(
 		)
 	}
 
-	status.Tracef(`waiting file upload to finish`)
+	log.Tracef(`waiting file upload to finish`)
 
 	err = cluster.stdin.Close()
 	if err != nil {
@@ -618,9 +618,9 @@ func connectAndLock(
 		)
 	}
 
-	status.Debugf(`using %d threads`, pool.size)
+	log.Debugf(`using %d threads`, pool.size)
 
-	status.Debugf(`connecting to %d nodes`, len(addresses))
+	log.Debugf(`connecting to %d nodes`, len(addresses))
 
 	if lockFile == "" {
 		if rootDir == "" {
@@ -662,9 +662,9 @@ func connectAndLock(
 	}
 
 	if noLock {
-		status.Debugf(`connection established to %d nodes`, len(cluster.nodes))
+		log.Debugf(`connection established to %d nodes`, len(cluster.nodes))
 	} else {
-		status.Debugf(`global lock acquired on %d nodes`, len(cluster.nodes))
+		log.Debugf(`global lock acquired on %d nodes`, len(cluster.nodes))
 	}
 
 	return cluster, nil

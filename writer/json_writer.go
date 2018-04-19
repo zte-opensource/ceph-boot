@@ -6,32 +6,32 @@ import (
 )
 
 type JsonWriter struct {
+	io.Writer
 	stream string
 	node   string
-	backend io.Writer
 }
 
-func NewJsonWriter(stream string, node string, backendWriter io.Writer) *JsonWriter {
+func NewJsonWriter(stream string, node string, w io.Writer) *JsonWriter {
 	return &JsonWriter{
+		Writer: w,
 		stream: stream,
-		node: node,
-		backend: backendWriter,
+		node:   node,
 	}
 }
 
-func (writer *JsonWriter) Write(data []byte) (int, error) {
+func (w *JsonWriter) Write(data []byte) (int, error) {
 	if len(data) == 0 {
 		return 0, nil
 	}
 
 	message := map[string]interface{}{
-		"stream": writer.stream,
+		"stream": w.stream,
 	}
 
-	if writer.node == "" {
+	if w.node == "" {
 		message["node"] = nil
 	} else {
-		message["node"] = writer.node
+		message["node"] = w.node
 	}
 
 	message["body"] = string(data)
@@ -41,7 +41,7 @@ func (writer *JsonWriter) Write(data []byte) (int, error) {
 		return 0, err
 	}
 
-	_, err = writer.backend.Write(append(jsonMessage, '\n'))
+	_, err = w.Write(append(jsonMessage, '\n'))
 	if err != nil {
 		return 0, err
 	}

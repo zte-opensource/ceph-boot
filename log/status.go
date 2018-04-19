@@ -1,4 +1,4 @@
-package status
+package log
 
 import (
 	"os"
@@ -16,7 +16,7 @@ func SetupStatusBar() {
 	if err != nil {
 		Errorln(hierr.Errorf(
 			err,
-			`can't use given status bar style`,
+			`can't use given log bar style`,
 		))
 	}
 
@@ -70,7 +70,7 @@ func DrawStatus() {
 		Errorf(
 			"%s", hierr.Errorf(
 				err,
-				`can't draw status bar`,
+				`can't draw log bar`,
 			),
 		)
 	}

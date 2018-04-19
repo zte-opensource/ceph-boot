@@ -34,54 +34,53 @@ func NewSharedLock(lock sync.Locker, clients int) *SharedLock {
 	}
 }
 
-func (slock *SharedLock) Lock() {
-	slock.holder.Lock()
-	defer slock.holder.Unlock()
+func (l *SharedLock) Lock() {
+	l.holder.Lock()
+	defer l.holder.Unlock()
 
-	if !slock.holder.locked {
-		slock.Lock()
+	if !l.holder.locked {
+		l.Lock()
 
-		slock.holder.locked = true
+		l.holder.locked = true
 	}
 }
 
-func (slock *SharedLock) Unlock() {
-	slock.holder.Lock()
-	defer slock.holder.Unlock()
+func (l *SharedLock) Unlock() {
+	l.holder.Lock()
+	defer l.holder.Unlock()
 
-	slock.holder.clients--
+	l.holder.clients--
 
-	if slock.holder.clients == 0 && slock.holder.locked {
-		slock.Unlock()
+	if l.holder.clients == 0 && l.holder.locked {
+		l.Unlock()
 
-		slock.holder.locked = false
+		l.holder.locked = false
 	}
 }
 
 type LockedWriter struct {
+	io.WriteCloser
 	sync.Locker
-
-	writer io.WriteCloser
 }
 
 func NewLockedWriter(
-	writer io.WriteCloser,
+	w io.WriteCloser,
 	lock sync.Locker,
 ) *LockedWriter {
 	return &LockedWriter{
-		Locker: lock,
-		writer: writer,
+		WriteCloser: w,
+		Locker:      lock,
 	}
 }
 
-func (writer *LockedWriter) Write(data []byte) (int, error) {
-	writer.Lock()
+func (w *LockedWriter) Write(data []byte) (int, error) {
+	w.Lock()
 
-	return writer.writer.Write(data)
+	return w.Write(data)
 }
 
-func (writer *LockedWriter) Close() error {
-	writer.Unlock()
+func (w *LockedWriter) Close() error {
+	w.Unlock()
 
-	return writer.writer.Close()
+	return w.Close()
 }

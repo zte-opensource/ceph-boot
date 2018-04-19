@@ -16,10 +16,10 @@ func NewMultiWriteCloser(writers []io.WriteCloser) *MultiWriteCloser {
 	}
 }
 
-func (m *MultiWriteCloser) Write(data []byte) (int, error) {
+func (w *MultiWriteCloser) Write(data []byte) (int, error) {
 	var errs []string
 
-	for _, writer := range m.writers {
+	for _, writer := range w.writers {
 		_, err := writer.Write(data)
 		if err != nil && err != io.EOF {
 			errs = append(errs, err.Error())
@@ -37,10 +37,10 @@ func (m *MultiWriteCloser) Write(data []byte) (int, error) {
 	return len(data), nil
 }
 
-func (m *MultiWriteCloser) Close() error {
+func (w *MultiWriteCloser) Close() error {
 	var errs []string
 
-	for _, closer := range m.writers {
+	for _, closer := range w.writers {
 		err := closer.Close()
 		if err != nil && err != io.EOF {
 			errs = append(errs, err.Error())

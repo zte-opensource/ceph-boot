@@ -16,12 +16,12 @@ func NewDebugWriteCloser(log *lorg.Log) *DebugWriteCloser {
 	}
 }
 
-func (writer *DebugWriteCloser) Write(data []byte) (int, error) {
-	writer.log.Debug(strings.TrimSuffix(string(data), "\n"))
+func (w *DebugWriteCloser) Write(data []byte) (int, error) {
+	w.log.Debug(strings.TrimSuffix(string(data), "\n"))
 
 	return len(data), nil
 }
 
-func (writer *DebugWriteCloser) Close() error {
+func (w *DebugWriteCloser) Close() error {
 	return nil
 }

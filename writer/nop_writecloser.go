@@ -8,12 +8,12 @@ type NopWriteCloser struct {
 	io.Writer
 }
 
-func NewNopWriteCloser(writer io.Writer) *NopWriteCloser {
+func NewNopWriteCloser(w io.Writer) *NopWriteCloser {
 	return &NopWriteCloser{
-		writer,
+		w,
 	}
 }
 
-func (writer *NopWriteCloser) Close() error {
+func (w *NopWriteCloser) Close() error {
 	return nil
 }

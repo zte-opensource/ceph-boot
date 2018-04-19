@@ -1,23 +1,23 @@
-package status
+package log
 
 import (
 	"io"
 )
 
 type StatusBarWriteCloser struct {
-	writer io.WriteCloser
+	io.WriteCloser
 }
 
 func NewStatusBarWriteCloser(writer io.WriteCloser) *StatusBarWriteCloser {
 	return &StatusBarWriteCloser{
-		writer: writer,
+		writer,
 	}
 }
 
 func (writer *StatusBarWriteCloser) Write(data []byte) (int, error) {
 	ClearStatus()
 
-	written, err := writer.writer.Write(data)
+	written, err := writer.Write(data)
 
 	DrawStatus()
 
@@ -25,5 +25,5 @@ func (writer *StatusBarWriteCloser) Write(data []byte) (int, error) {
 }
 
 func (writer *StatusBarWriteCloser) Close() error {
-	return writer.writer.Close()
+	return writer.Close()
 }

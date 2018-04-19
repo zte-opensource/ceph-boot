@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/reconquest/hierr-go"
-	"github.com/zte-opensource/ceph-boot/status"
+	"github.com/zte-opensource/ceph-boot/log"
 	"github.com/zte-opensource/ceph-boot/writer"
 	"reflect"
 )
@@ -68,7 +68,7 @@ func (cluster *Cluster) Connect(
 		stat.Phase = `connect`
 	}
 
-	status.SetStatus(stat)
+	log.SetStatus(stat)
 
 	for _, nodeAddress := range addresses {
 		go func(nodeAddress address) {
@@ -84,7 +84,7 @@ func (cluster *Cluster) Connect(
 
 					if noConnFail {
 						failed = true
-						status.Warningln(err)
+						log.Warningln(err)
 					} else {
 						errors <- err
 						return
@@ -94,7 +94,7 @@ func (cluster *Cluster) Connect(
 						err = node.Lock(lockFile)
 						if err != nil {
 							if noLockFail {
-								status.Warningln(err)
+								log.Warningln(err)
 							} else {
 								errors <- err
 								return
@@ -117,7 +117,7 @@ func (cluster *Cluster) Connect(
 					cluster.nodes = append(cluster.nodes, node)
 				}
 
-				status.Debugf(
+				log.Debugf(
 					`%4d/%d (%d failed) connection %s: %s`,
 					stat.Success,
 					stat.Total,
@@ -187,7 +187,7 @@ func (cluster *Cluster) RunCommand(
 		}
 	)
 
-	status.SetStatus(stat)
+	log.SetStatus(stat)
 
 	type nodeErr struct {
 		err  error
@@ -198,7 +198,7 @@ func (cluster *Cluster) RunCommand(
 	for _, node := range cluster.nodes {
 		go func(node *Node) {
 			pool.run(func() {
-				status.Tracef(
+				log.Tracef(
 					"%s",
 					hierr.Errorf(
 						command,
@@ -286,7 +286,7 @@ func (cluster *Cluster) RunCommand(
 }
 
 func (cluster *Cluster) Wait() error {
-	status.Tracef(`waiting %d nodes to finish`, len(cluster.nodes))
+	log.Tracef(`waiting %d nodes to finish`, len(cluster.nodes))
 
 	results := make(chan *RemoteCommandResult, 0)
 	for _, node := range cluster.nodes {
@@ -313,7 +313,7 @@ func (cluster *Cluster) Wait() error {
 		exitCodes = map[int]int{}
 	)
 
-	status.SetStatus(stat)
+	log.SetStatus(stat)
 
 	for range cluster.nodes {
 		result := <-results
@@ -332,7 +332,7 @@ func (cluster *Cluster) Wait() error {
 			stat.Fails++
 			stat.Total--
 
-			status.Tracef(
+			log.Tracef(
 				`%s finished with exit code: '%d'`,
 				result.rc.node.String(),
 				result.rc.exitCode,
@@ -343,7 +343,7 @@ func (cluster *Cluster) Wait() error {
 
 		stat.Success++
 
-		status.Tracef(
+		log.Tracef(
 			`%s has successfully finished execution`,
 			result.rc.node.String(),
 		)

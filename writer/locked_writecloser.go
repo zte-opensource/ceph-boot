@@ -6,7 +6,7 @@ import (
 )
 
 type SharedLock struct {
-	sync.Locker
+	lock sync.Locker
 
 	holder *struct {
 		sync.Locker
@@ -16,9 +16,9 @@ type SharedLock struct {
 	}
 }
 
-func NewSharedLock(lock sync.Locker, clients int) *SharedLock {
+func NewSharedLock(l sync.Locker, clients int) *SharedLock {
 	return &SharedLock{
-		Locker: lock,
+		lock: l,
 
 		holder: &struct {
 			sync.Locker
@@ -39,7 +39,7 @@ func (l *SharedLock) Lock() {
 	defer l.holder.Unlock()
 
 	if !l.holder.locked {
-		l.Lock()
+		l.lock.Lock()
 
 		l.holder.locked = true
 	}
@@ -52,7 +52,7 @@ func (l *SharedLock) Unlock() {
 	l.holder.clients--
 
 	if l.holder.clients == 0 && l.holder.locked {
-		l.Unlock()
+		l.lock.Unlock()
 
 		l.holder.locked = false
 	}
@@ -63,10 +63,10 @@ type LockedWriter struct {
 	sync.Locker
 }
 
-func NewLockedWriter(w io.WriteCloser, lock sync.Locker) *LockedWriter {
+func NewLockedWriter(w io.WriteCloser, l sync.Locker) *LockedWriter {
 	return &LockedWriter{
 		writer: w,
-		Locker:      lock,
+		Locker: l,
 	}
 }
 

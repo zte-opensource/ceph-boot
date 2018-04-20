@@ -12,15 +12,15 @@ import (
 	"github.com/reconquest/hierr-go"
 	"github.com/reconquest/lineflushwriter-go"
 	"github.com/reconquest/prefixwriter-go"
-	"github.com/zte-opensource/runcmd"
-	"github.com/zte-opensource/ceph-boot/writer"
 	"github.com/zte-opensource/ceph-boot/log"
+	"github.com/zte-opensource/ceph-boot/writer"
+	"github.com/zte-opensource/runcmd"
 )
 
 const (
 	longConnectionWarningTimeout = 2 * time.Second
 	lockAcquiredString           = `acquired`
-	lockLockedString             = `locked`
+	lockBusyString               = `locked`
 
 	heartbeatPing = "PING"
 )
@@ -52,7 +52,7 @@ func (node *Node) Lock(filename string) error {
 	lockCommandLine := []string{
 		"sh", "-c", fmt.Sprintf(
 			`flock -nx %s -c 'printf "%s\n" && cat' || printf "%s\n"`,
-			filename, lockAcquiredString, lockLockedString,
+			filename, lockAcquiredString, lockBusyString,
 		),
 	}
 
@@ -118,7 +118,7 @@ func (node *Node) Lock(filename string) error {
 	case lockAcquiredString:
 		// pass
 
-	case lockLockedString:
+	case lockBusyString:
 		return fmt.Errorf(
 			`%s can't acquire lock, `+
 				`lock already obtained by another process `+
@@ -130,7 +130,7 @@ func (node *Node) Lock(filename string) error {
 		return fmt.Errorf(
 			`%s unexpected reply string encountered `+
 				`instead of '%s' or '%s': '%s'`,
-			node, lockAcquiredString, lockLockedString,
+			node, lockAcquiredString, lockBusyString,
 			line,
 		)
 	}
@@ -368,6 +368,7 @@ func (node *Node) CreateRemoteCommand(
 	stdout = log.NewStatusBarWriteCloser(stdout)
 	stderr = log.NewStatusBarWriteCloser(stderr)
 
+	// node level output lock
 	if outputLock != (*sync.Mutex)(nil) {
 		sharedLock := writer.NewSharedLock(outputLock, 2)
 

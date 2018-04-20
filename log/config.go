@@ -3,7 +3,7 @@ package log
 import "github.com/reconquest/barely"
 
 type (
-	verbosity int
+	verbosity    int
 	outputFormat int
 )
 
@@ -20,13 +20,13 @@ const (
 )
 
 var (
-	Conf Config
+	Conf      Config
 	statusBar *barely.StatusBar
 )
 
 type Config struct {
-	Verbose verbosity
-	Format outputFormat
-	Theme string
+	Verbose  verbosity
+	Format   outputFormat
+	Theme    string
 	HasStdin bool
 }

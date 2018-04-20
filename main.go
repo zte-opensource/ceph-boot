@@ -22,8 +22,8 @@ import (
 	"github.com/mattn/go-shellwords"
 	"github.com/reconquest/hierr-go"
 	"github.com/reconquest/loreley"
-	"github.com/zte-opensource/runcmd"
 	"github.com/zte-opensource/ceph-boot/log"
+	"github.com/zte-opensource/runcmd"
 )
 
 var version = "[manual build]"
@@ -193,7 +193,7 @@ var (
 )
 
 var (
-	pool      *threadPool
+	pool *threadPool
 )
 
 var (
@@ -207,11 +207,11 @@ func main() {
 		quiet = args["--quiet"].(bool)
 		level = args["--verbose"].(int)
 
-		logTheme = args["--log-format"].(string)
-		light = args["--colors-light"].(bool)
-		dark  = args["--colors-dark"].(bool)
+		logTheme    = args["--log-format"].(string)
+		light       = args["--colors-light"].(bool)
+		dark        = args["--colors-dark"].(bool)
 		_, hasStdin = args["--stdin"].(string)
-		barTheme = args["--bar-format"].(string)
+		barTheme    = args["--bar-format"].(string)
 	)
 
 	verbose := log.VerbosityNormal
@@ -269,7 +269,7 @@ func main() {
 	log.Conf.HasStdin = hasStdin
 	log.SetupStatusBar()
 
-	if ! loreley.HasTTY(int(os.Stderr.Fd())) {
+	if !loreley.HasTTY(int(os.Stderr.Fd())) {
 		sshPasswordPrompt = ""
 		sshPassphrasePrompt = ""
 	}

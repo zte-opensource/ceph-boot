@@ -26,7 +26,7 @@ type ClusterConfig struct {
 type Cluster struct {
 	config ClusterConfig
 	nodes  []*Node
-	stdin io.WriteCloser
+	stdin  io.WriteCloser
 }
 
 func NewCluster(config *ClusterConfig) *Cluster {

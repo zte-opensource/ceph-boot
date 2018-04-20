@@ -9,8 +9,8 @@ import (
 	"syscall"
 
 	"github.com/reconquest/hierr-go"
-	"github.com/zte-opensource/ceph-boot/writer"
 	"github.com/zte-opensource/ceph-boot/log"
+	"github.com/zte-opensource/ceph-boot/writer"
 )
 
 type file struct {

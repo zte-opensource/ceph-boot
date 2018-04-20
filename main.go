@@ -357,7 +357,7 @@ func run(
 	serial bool,
 	stdin string,
 ) error {
-	err := cluster.RunCommand(command, nil, serial)
+	err := cluster.RunCommand(command, serial)
 	if err != nil {
 		return hierr.Errorf(
 			err,

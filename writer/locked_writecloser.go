@@ -59,16 +59,13 @@ func (l *SharedLock) Unlock() {
 }
 
 type LockedWriter struct {
-	io.WriteCloser
+	writer io.WriteCloser
 	sync.Locker
 }
 
-func NewLockedWriter(
-	w io.WriteCloser,
-	lock sync.Locker,
-) *LockedWriter {
+func NewLockedWriter(w io.WriteCloser, lock sync.Locker) *LockedWriter {
 	return &LockedWriter{
-		WriteCloser: w,
+		writer: w,
 		Locker:      lock,
 	}
 }
@@ -76,11 +73,11 @@ func NewLockedWriter(
 func (w *LockedWriter) Write(data []byte) (int, error) {
 	w.Lock()
 
-	return w.Write(data)
+	return w.writer.Write(data)
 }
 
 func (w *LockedWriter) Close() error {
 	w.Unlock()
 
-	return w.Close()
+	return w.writer.Close()
 }

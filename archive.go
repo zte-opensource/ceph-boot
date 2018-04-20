@@ -6,12 +6,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"sync"
 	"syscall"
 
 	"github.com/reconquest/hierr-go"
-	"github.com/reconquest/lineflushwriter-go"
-	"github.com/reconquest/prefixwriter-go"
 	"github.com/zte-opensource/ceph-boot/writer"
 	"github.com/zte-opensource/ceph-boot/log"
 )
@@ -35,8 +32,6 @@ func startArchiveReceivers(
 		command = append(command, `--verbose`)
 	}
 
-	logMutex := &sync.Mutex{}
-
 	raw := &RawCommand{
 		command: command,
 		shell:   defaultRemoteExecutionShell,
@@ -50,19 +45,6 @@ func startArchiveReceivers(
 
 	err = cluster.RunCommand(
 		command,
-		func(remoteCommand *RemoteCommand) {
-			remoteCommand.stdout = lineflushwriter.New(
-				prefixwriter.New(remoteCommand.stdout, "{tar} "),
-				logMutex,
-				true,
-			)
-
-			remoteCommand.stderr = lineflushwriter.New(
-				prefixwriter.New(remoteCommand.stderr, "{tar} "),
-				logMutex,
-				true,
-			)
-		},
 		serial,
 	)
 	if err != nil {

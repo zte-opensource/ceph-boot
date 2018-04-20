@@ -158,7 +158,6 @@ func (cluster *Cluster) Connect(
 
 func (cluster *Cluster) RunCommand(
 	command []string,
-	setupCallback func(*RemoteCommand),
 	serial bool,
 ) error {
 	var (
@@ -223,10 +222,6 @@ func (cluster *Cluster) RunCommand(
 					stat.Fails++
 
 					return
-				}
-
-				if setupCallback != nil {
-					setupCallback(remoteCommand)
 				}
 
 				remoteCommand.worker.SetStdout(remoteCommand.stdout)

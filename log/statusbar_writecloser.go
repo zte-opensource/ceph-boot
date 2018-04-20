@@ -5,25 +5,25 @@ import (
 )
 
 type StatusBarWriteCloser struct {
-	io.WriteCloser
+	writer io.WriteCloser
 }
 
-func NewStatusBarWriteCloser(writer io.WriteCloser) *StatusBarWriteCloser {
+func NewStatusBarWriteCloser(w io.WriteCloser) *StatusBarWriteCloser {
 	return &StatusBarWriteCloser{
-		writer,
+		w,
 	}
 }
 
-func (writer *StatusBarWriteCloser) Write(data []byte) (int, error) {
+func (w *StatusBarWriteCloser) Write(data []byte) (int, error) {
 	ClearStatus()
 
-	written, err := writer.Write(data)
+	written, err := w.writer.Write(data)
 
 	DrawStatus()
 
 	return written, err
 }
 
-func (writer *StatusBarWriteCloser) Close() error {
-	return writer.Close()
+func (w *StatusBarWriteCloser) Close() error {
+	return w.writer.Close()
 }

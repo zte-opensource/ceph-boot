@@ -6,14 +6,14 @@ import (
 )
 
 type JsonWriter struct {
-	io.Writer
+	writer io.Writer
 	stream string
 	node   string
 }
 
 func NewJsonWriter(stream string, node string, w io.Writer) *JsonWriter {
 	return &JsonWriter{
-		Writer: w,
+		writer: w,
 		stream: stream,
 		node:   node,
 	}
@@ -41,7 +41,7 @@ func (w *JsonWriter) Write(data []byte) (int, error) {
 		return 0, err
 	}
 
-	_, err = w.Write(append(jsonMessage, '\n'))
+	_, err = w.writer.Write(append(jsonMessage, '\n'))
 	if err != nil {
 		return 0, err
 	}

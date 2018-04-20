@@ -224,9 +224,6 @@ func (cluster *Cluster) RunCommand(
 					return
 				}
 
-				remoteCommand.worker.SetStdout(remoteCommand.stdout)
-				remoteCommand.worker.SetStderr(remoteCommand.stderr)
-
 				// run command on remote node
 				err = remoteCommand.worker.Start()
 				if err != nil {

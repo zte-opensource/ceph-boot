@@ -383,6 +383,9 @@ func (node *Node) CreateRemoteCommand(
 		)
 	}
 
+	worker.SetStdout(stdout)
+	worker.SetStderr(stderr)
+
 	return &RemoteCommand{
 		node:   node,
 		worker: worker,

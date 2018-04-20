@@ -11,7 +11,6 @@ import (
 	"io/ioutil"
 	"os"
 	"os/user"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -51,6 +50,14 @@ Operation mode options:
   -L --lock               Will stop right after locking, e.g. will not try to
                            do sync whatsoever. Will keep lock until interrupted.
   -U --upload             Upload files to specified directory and exit.
+  -S --sync               Sync.
+                           Synchronizes files on the specified hosts via 3-stage
+                           process:
+                           * global cluster locking (use -L to stop here);
+                           * tar-ing files on local machine, transmitting and
+                           unpacking files to the intermediate directory
+                           (-U to stop here);
+                           * launching sync command tool such as gunter;
   -C --command            Run specified command on all hosts and exit.
 
 Required options:
@@ -226,7 +233,18 @@ func main() {
 	log.SetLoggerVerbosity(verbose)
 	log.SetLoggerOutputFormat(format)
 
-	loreley.Colorize = parseColorMode(args)
+	colorize := loreley.ColorizeNever
+
+	switch args["--color"].(string) {
+	case "always":
+		colorize = loreley.ColorizeAlways
+	case "auto":
+		colorize = loreley.ColorizeOnTTY
+	case "never":
+		colorize = loreley.ColorizeNever
+	}
+
+	loreley.Colorize = colorize
 
 	switch {
 	case light:
@@ -267,9 +285,11 @@ func main() {
 	pool = newThreadPool(poolSize)
 
 	switch {
+	case args["--lock"].(bool):
+		fallthrough
 	case args["--upload"].(bool):
 		fallthrough
-	case args["--lock"].(bool):
+	case args["--sync"].(bool):
 		err = handleSynchronize(args)
 	case args["--command"].(bool):
 		err = handleEvaluate(args)
@@ -348,16 +368,7 @@ func handleEvaluate(args map[string]interface{}) error {
 		return err
 	}
 
-	return run(cluster, command, serial, stdin)
-}
-
-func run(
-	cluster *Cluster,
-	command []string,
-	serial bool,
-	stdin string,
-) error {
-	err := cluster.RunCommand(command, serial)
+	err = cluster.RunCommand(command, serial)
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -427,9 +438,10 @@ func handleSynchronize(args map[string]interface{}) error {
 		serial = args["--serial"].(bool)
 
 		fileSources = args["<files>"].([]string)
-	)
 
-	var (
+		preserveUID = !args["--no-preserve-uid"].(bool)
+		preserveGID = !args["--no-preserve-gid"].(bool)
+
 		filesList = []file{}
 
 		err error
@@ -464,70 +476,10 @@ func handleSynchronize(args map[string]interface{}) error {
 	log.Debugf(`file list contains %d files`, len(filesList))
 	log.Tracef(`files to upload: %+v`, filesList)
 
-	err = upload(args, cluster, filesList)
-	if err != nil {
-		return hierr.Errorf(
-			err,
-			`can't upload files on the remote nodes`,
-		)
-	}
-
-	log.Tracef(`upload done`)
-
-	if uploadOnly {
-		return nil
-	}
-
-	log.Tracef(`starting sync tool`)
-
-	commandline, err := shellwords.NewParser().Parse(commandString)
-	if err != nil {
-		return hierr.Errorf(
-			err,
-			`can't parse sync tool command: '%s'`,
-			commandString,
-		)
-	}
-
-	raw := &RawCommand{
-		shell:     shell,
-		sudo:      sudo,
-		command:   commandline,
-		args:      commandArgs,
-		directory: rootDir,
-	}
-
-	command, err := raw.ParseCommand()
-	if err != nil {
-		return err
-	}
-
-	return run(cluster, command, serial, stdin)
-}
-
-func upload(
-	args map[string]interface{},
-	cluster *Cluster,
-	filesList []file,
-) error {
-	var (
-		rootDir, _ = args["--root"].(string)
-		sudo       = args["--sudo"].(bool)
-
-		preserveUID = !args["--no-preserve-uid"].(bool)
-		preserveGID = !args["--no-preserve-gid"].(bool)
-
-		serial = args["--serial"].(bool)
-	)
-
-	if rootDir == "" {
-		rootDir = filepath.Join(runsDirectory, generateRunID())
-	}
-
 	log.Debugf(`file upload started into: '%s'`, rootDir)
 
 	// start tar command which waits files on stdin to extract
-	err := startArchiveReceivers(cluster, rootDir, sudo, serial)
+	err = startArchiveReceivers(cluster, rootDir, sudo, serial)
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -563,6 +515,86 @@ func upload(
 		return hierr.Errorf(
 			err,
 			`archive upload failed`,
+		)
+	}
+
+	log.Tracef(`upload done`)
+
+	if uploadOnly {
+		return nil
+	}
+
+	log.Tracef(`starting sync tool`)
+
+	commandline, err := shellwords.NewParser().Parse(commandString)
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`can't parse sync tool command: '%s'`,
+			commandString,
+		)
+	}
+
+	raw := &RawCommand{
+		shell:     shell,
+		sudo:      sudo,
+		command:   commandline,
+		args:      commandArgs,
+		directory: rootDir,
+	}
+
+	command, err := raw.ParseCommand()
+	if err != nil {
+		return err
+	}
+
+	err = cluster.RunCommand(command, serial)
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`can't run remote execution on %d nodes`,
+			len(cluster.nodes),
+		)
+	}
+
+	if stdin != "" {
+		var inputFile *os.File
+
+		inputFile, err = os.Open(stdin)
+		if err != nil {
+			return hierr.Errorf(
+				err,
+				`can't open file for passing as stdin: '%s'`,
+				inputFile,
+			)
+		}
+
+		_, err = io.Copy(cluster.stdin, inputFile)
+		if err != nil {
+			return hierr.Errorf(
+				err,
+				`can't copy input file to the execution processes`,
+			)
+		}
+	}
+
+	log.Debugf(`commands are running, waiting for finish`)
+
+	err = cluster.stdin.Close()
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`can't close stdin`,
+		)
+	}
+
+	err = cluster.Wait()
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`remote execution failed, because one of `+
+				`command has been exited with non-zero exit `+
+				`code (or timed out) at least on one node`,
 		)
 	}
 
@@ -849,10 +881,6 @@ func parseAddresses(
 	return getUniqueAddresses(addresses), nil
 }
 
-func generateRunID() string {
-	return time.Now().Format("20060102150405.999999")
-}
-
 func readPassword(prompt string) (string, error) {
 	fmt.Fprintf(os.Stderr, prompt)
 
@@ -930,19 +958,4 @@ func makeTimeouts(args map[string]interface{}) (*runcmd.Timeouts, error) {
 		ReceiveTimeout:    time.Millisecond * time.Duration(receiveTimeout),
 		KeepAlive:         time.Millisecond * time.Duration(keepAlive),
 	}, nil
-}
-
-func parseColorMode(args map[string]interface{}) loreley.ColorizeMode {
-	switch args["--color"].(string) {
-	case "always":
-		return loreley.ColorizeAlways
-
-	case "auto":
-		return loreley.ColorizeOnTTY
-
-	case "never":
-		return loreley.ColorizeNever
-	}
-
-	return loreley.ColorizeNever
 }

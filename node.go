@@ -300,8 +300,13 @@ func (node *Node) CreateRemoteCommand(
 
 	var stdout io.WriteCloser
 	var stderr io.WriteCloser
-	switch {
-	case log.Conf.Verbose == log.VerbosityQuiet:
+
+	prefix := ""
+	if log.Conf.Verbose != log.VerbosityQuiet {
+		prefix = node.address.domain + " "
+	}
+
+	if prefix == "" {
 		stdout = lineflushwriter.New(
 			writer.NewNopWriteCloser(stdoutBackend),
 			logLock,
@@ -310,50 +315,29 @@ func (node *Node) CreateRemoteCommand(
 			writer.NewNopWriteCloser(stderrBackend),
 			logLock,
 			false)
-
-	case log.Conf.Verbose == log.VerbosityNormal:
+	} else {
 		stdout = lineflushwriter.New(
 			writer.NewPrefixWriteCloser(
 				writer.NewNopWriteCloser(stdoutBackend),
-				node.address.domain+" ",
+				prefix,
 			),
 			logLock,
 			true,
 		)
-
 		stderr = lineflushwriter.New(
 			writer.NewPrefixWriteCloser(
 				writer.NewNopWriteCloser(stderrBackend),
-				node.address.domain+" ",
+				prefix,
 			),
 			logLock,
 			true,
-		)
-
-	default:
-		stdout = lineflushwriter.New(
-			writer.NewPrefixWriteCloser(
-				writer.NewDebugWriteCloser(log.Logger),
-				"{cmd} <stdout> "+node.String()+" ",
-			),
-			logLock,
-			false,
-		)
-
-		stderr = lineflushwriter.New(
-			writer.NewPrefixWriteCloser(
-				writer.NewDebugWriteCloser(log.Logger),
-				"{cmd} <stderr> "+node.String()+" ",
-			),
-			logLock,
-			false,
 		)
 	}
 
 	stdout = log.NewStatusBarWriteCloser(stdout)
 	stderr = log.NewStatusBarWriteCloser(stderr)
 
-	// node level output lock
+	// node level stdout/stderr lock
 	if outputLock != (*sync.Mutex)(nil) {
 		sharedLock := writer.NewSharedLock(outputLock, 2)
 

@@ -11,7 +11,6 @@ import (
 
 	"github.com/reconquest/hierr-go"
 	"github.com/reconquest/lineflushwriter-go"
-	"github.com/reconquest/prefixwriter-go"
 	"github.com/zte-opensource/ceph-boot/log"
 	"github.com/zte-opensource/ceph-boot/writer"
 	"github.com/zte-opensource/runcmd"
@@ -78,7 +77,7 @@ func (node *Node) Lock(filename string) error {
 	}
 
 	stderr := lineflushwriter.New(
-		prefixwriter.New(
+		writer.NewPrefixWriteCloser(
 			writer.NewDebugWriteCloser(log.Logger),
 			fmt.Sprintf("%s {flock} <stderr> ", node.String()),
 		),
@@ -314,7 +313,7 @@ func (node *Node) CreateRemoteCommand(
 
 	case log.Conf.Verbose == log.VerbosityNormal:
 		stdout = lineflushwriter.New(
-			prefixwriter.New(
+			writer.NewPrefixWriteCloser(
 				writer.NewNopWriteCloser(stdoutBackend),
 				node.address.domain+" ",
 			),
@@ -323,7 +322,7 @@ func (node *Node) CreateRemoteCommand(
 		)
 
 		stderr = lineflushwriter.New(
-			prefixwriter.New(
+			writer.NewPrefixWriteCloser(
 				writer.NewNopWriteCloser(stderrBackend),
 				node.address.domain+" ",
 			),
@@ -333,7 +332,7 @@ func (node *Node) CreateRemoteCommand(
 
 	default:
 		stdout = lineflushwriter.New(
-			prefixwriter.New(
+			writer.NewPrefixWriteCloser(
 				writer.NewDebugWriteCloser(log.Logger),
 				"{cmd} <stdout> "+node.String()+" ",
 			),
@@ -342,7 +341,7 @@ func (node *Node) CreateRemoteCommand(
 		)
 
 		stderr = lineflushwriter.New(
-			prefixwriter.New(
+			writer.NewPrefixWriteCloser(
 				writer.NewDebugWriteCloser(log.Logger),
 				"{cmd} <stderr> "+node.String()+" ",
 			),

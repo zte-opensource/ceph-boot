@@ -51,12 +51,6 @@
 			"revisionTime": "2016-07-08T08:05:00Z"
 		},
 		{
-			"checksumSHA1": "xCzx519wKKsO34ePkbFVcwT2XNM=",
-			"path": "github.com/reconquest/prefixwriter-go",
-			"revision": "f514fb348765ad236447ed42e43a9dadd2173d4d",
-			"revisionTime": "2016-08-18T10:08:56Z"
-		},
-		{
 			"checksumSHA1": "Qa81+aknC3p8dslfUIEud30fXmc=",
 			"path": "github.com/reconquest/ser-go",
 			"revision": "47f084a1e4a5433ac3d6ab6cfe8c1e30028a4d76",

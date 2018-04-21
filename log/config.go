@@ -3,7 +3,7 @@ package log
 import "github.com/reconquest/barely"
 
 type (
-	verbosity    int
+	verbosity int
 )
 
 const (
@@ -19,5 +19,5 @@ var (
 )
 
 type Config struct {
-	Verbose  verbosity
+	Verbose verbosity
 }

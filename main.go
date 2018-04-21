@@ -411,7 +411,7 @@ func handleSynchronize(args map[string]interface{}) error {
 		preserveGID = !args["--no-preserve-gid"].(bool)
 
 		filesList []file
-		err error
+		err       error
 	)
 
 	canceler := sync.NewCond(&sync.Mutex{})

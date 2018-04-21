@@ -15,8 +15,6 @@ var (
 	loggerFormattingBasicLength = 0
 )
 
-
-
 func SetLoggerVerbosity(v verbosity) {
 	Conf.Verbose = v
 

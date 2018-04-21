@@ -9,15 +9,35 @@ import (
 	"github.com/reconquest/loreley"
 )
 
-func SetupStatusBar() {
+func SetupLogger(theme string, verbose verbosity, colorize loreley.ColorizeMode) error {
+	loreley.Colorize = colorize
+
+	loggerStyle, err := GetLoggerTheme(theme)
+	if err != nil {
+		Fatalln(hierr.Errorf(
+			err,
+			`can't use given logger style`,
+		))
+		return err
+	}
+
+	SetLoggerStyle(loggerStyle)
+
+	SetLoggerVerbosity(verbose)
+
+	return nil
+}
+
+func SetupStatusBar(theme string) error {
 	barLock := &sync.Mutex{}
 
-	barStyle, err := getStatusBarTheme(Conf.Theme)
+	barStyle, err := getStatusBarTheme(theme)
 	if err != nil {
 		Errorln(hierr.Errorf(
 			err,
 			`can't use given log bar style`,
 		))
+		return err
 	}
 
 	if loreley.HasTTY(int(os.Stderr.Fd())) {
@@ -27,9 +47,7 @@ func SetupStatusBar() {
 		statusBar = nil
 	}
 
-	if Conf.HasStdin && loreley.HasTTY(int(os.Stdin.Fd())) {
-		statusBar = nil
-	}
+	return nil
 }
 
 func SetStatus(status interface{}) {
@@ -46,10 +64,6 @@ func SetStatus(status interface{}) {
 
 func shouldDrawStatus() bool {
 	if statusBar == nil {
-		return false
-	}
-
-	if Conf.Verbose <= VerbosityQuiet {
 		return false
 	}
 

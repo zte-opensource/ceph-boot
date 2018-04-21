@@ -220,10 +220,7 @@ func main() {
 		verbose = log.VerbosityTrace
 	}
 
-	log.SetLoggerVerbosity(verbose)
-
 	colorize := loreley.ColorizeNever
-
 	switch args["--color"].(string) {
 	case "always":
 		colorize = loreley.ColorizeAlways
@@ -232,8 +229,6 @@ func main() {
 	case "never":
 		colorize = loreley.ColorizeNever
 	}
-
-	loreley.Colorize = colorize
 
 	switch {
 	case light:
@@ -244,23 +239,9 @@ func main() {
 		barTheme = log.ThemeDark
 	}
 
-	loggerStyle, err := log.GetLoggerTheme(logTheme)
-	if err != nil {
-		log.Fatalln(hierr.Errorf(
-			err,
-			`can't use given logger style`,
-		))
-	}
-
-	log.SetLoggerStyle(loggerStyle)
-
-	log.Conf.Theme = barTheme
-	log.Conf.HasStdin = hasStdin
-	log.SetupStatusBar()
-
-	if !loreley.HasTTY(int(os.Stderr.Fd())) {
-		sshPasswordPrompt = ""
-		sshPassphrasePrompt = ""
+	log.SetupLogger(logTheme, verbose, colorize)
+	if !hasStdin && !quiet {
+		log.SetupStatusBar(barTheme)
 	}
 
 	poolSize, err := parseThreadPoolSize(args)
@@ -287,8 +268,6 @@ func main() {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	log.ClearStatus()
 }
 
 func parseArgs() map[string]interface{} {
@@ -431,8 +410,7 @@ func handleSynchronize(args map[string]interface{}) error {
 		preserveUID = !args["--no-preserve-uid"].(bool)
 		preserveGID = !args["--no-preserve-gid"].(bool)
 
-		filesList = []file{}
-
+		filesList []file
 		err error
 	)
 

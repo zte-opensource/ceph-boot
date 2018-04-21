@@ -15,6 +15,8 @@ var (
 	loggerFormattingBasicLength = 0
 )
 
+
+
 func SetLoggerVerbosity(v verbosity) {
 	Conf.Verbose = v
 
@@ -90,10 +92,6 @@ func Infoln(args ...interface{}) {
 func Warningf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	if Conf.Verbose <= VerbosityQuiet {
-		return
-	}
-
 	Logger.Warningf(`%s`, wrapLines(format, args...))
 
 	DrawStatus()
@@ -115,8 +113,6 @@ func Errorln(args ...interface{}) {
 
 func Fatalf(format string, args ...interface{}) {
 	args = serializeErrors(args)
-
-	ClearStatus()
 
 	Logger.Fatalf(`%s`, wrapLines(format, args...))
 

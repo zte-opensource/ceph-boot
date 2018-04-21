@@ -4,7 +4,6 @@ import "github.com/reconquest/barely"
 
 type (
 	verbosity    int
-	outputFormat int
 )
 
 const (
@@ -21,6 +20,4 @@ var (
 
 type Config struct {
 	Verbose  verbosity
-	Theme    string
-	HasStdin bool
 }

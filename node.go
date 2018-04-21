@@ -299,24 +299,10 @@ func (node *Node) CreateRemoteCommand(
 	stdoutBackend := io.Writer(os.Stdout)
 	stderrBackend := io.Writer(os.Stderr)
 
-	if log.Conf.Format == log.OutputFormatJSON {
-		stdoutBackend = writer.NewJsonWriter(
-			"stdout",
-			node.String(),
-			os.Stdout,
-		)
-
-		stderrBackend = writer.NewJsonWriter(
-			"stderr",
-			node.String(),
-			os.Stderr,
-		)
-	}
-
 	var stdout io.WriteCloser
 	var stderr io.WriteCloser
 	switch {
-	case log.Conf.Verbose == log.VerbosityQuiet || log.Conf.Format == log.OutputFormatJSON:
+	case log.Conf.Verbose == log.VerbosityQuiet:
 		stdout = lineflushwriter.New(
 			writer.NewNopWriteCloser(stdoutBackend),
 			logLock,

@@ -133,11 +133,6 @@ Advanced options:
   --no-preserve-gid       Do not preserve GIDs for transferred files.
 
 Output format and colors options:
-    --json                Output everything in line-by-line JSON format,
-                           printing objects with fields:
-                           * 'stream' = 'stdout' | 'stderr';
-                           * 'node' = <node-name> | null (if internal output);
-                           * 'body' = <string>
     --bar-format <f>      Format for the status bar.
                            Full Go template syntax is available with delims
                            of '{' and '}'.
@@ -225,13 +220,7 @@ func main() {
 		verbose = log.VerbosityTrace
 	}
 
-	format := log.OutputFormatText
-	if args["--json"].(bool) {
-		format = log.OutputFormatJSON
-	}
-
 	log.SetLoggerVerbosity(verbose)
-	log.SetLoggerOutputFormat(format)
 
 	colorize := loreley.ColorizeNever
 

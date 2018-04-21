@@ -49,10 +49,6 @@ func shouldDrawStatus() bool {
 		return false
 	}
 
-	if Conf.Format != OutputFormatText {
-		return false
-	}
-
 	if Conf.Verbose <= VerbosityQuiet {
 		return false
 	}

@@ -8,11 +8,6 @@ type (
 )
 
 const (
-	OutputFormatText outputFormat = iota
-	OutputFormatJSON
-)
-
-const (
 	VerbosityQuiet verbosity = iota
 	VerbosityNormal
 	VerbosityDebug
@@ -26,7 +21,6 @@ var (
 
 type Config struct {
 	Verbose  verbosity
-	Format   outputFormat
 	Theme    string
 	HasStdin bool
 }

@@ -7,27 +7,13 @@ import (
 	"strings"
 
 	"github.com/kovetskiy/lorg"
-	"github.com/reconquest/hierr-go"
 	"github.com/reconquest/loreley"
-	"github.com/zte-opensource/ceph-boot/writer"
 )
 
 var (
 	Logger                      = lorg.NewLog()
 	loggerFormattingBasicLength = 0
 )
-
-func SetLoggerOutputFormat(f outputFormat) {
-	Conf.Format = f
-
-	if Conf.Format == OutputFormatJSON {
-		Logger.SetOutput(writer.NewJsonWriter(
-			"stderr",
-			"",
-			os.Stderr,
-		))
-	}
-}
 
 func SetLoggerVerbosity(v verbosity) {
 	Conf.Verbose = v
@@ -165,40 +151,5 @@ func serializeErrors(args []interface{}) []interface{} {
 }
 
 func serializeError(err error) string {
-	if Conf.Format == OutputFormatText {
-		return fmt.Sprint(err)
-	}
-
-	if hierarchicalError, ok := err.(hierr.Error); ok {
-		serializedError := fmt.Sprint(hierarchicalError.Nested)
-		switch nested := hierarchicalError.Nested.(type) {
-		case error:
-			serializedError = serializeError(nested)
-
-		case []hierr.NestedError:
-			serializeErrorParts := []string{}
-
-			for _, nestedPart := range nested {
-				serializedPart := fmt.Sprint(nestedPart)
-				switch part := nestedPart.(type) {
-				case error:
-					serializedPart = serializeError(part)
-
-				case string:
-					serializedPart = part
-				}
-
-				serializeErrorParts = append(
-					serializeErrorParts,
-					serializedPart,
-				)
-			}
-
-			serializedError = strings.Join(serializeErrorParts, "; ")
-		}
-
-		return hierarchicalError.Message + ": " + serializedError
-	}
-
-	return err.Error()
+	return fmt.Sprint(err)
 }

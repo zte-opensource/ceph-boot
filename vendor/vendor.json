@@ -39,12 +39,6 @@
 			"revisionTime": "2017-08-24T21:38:38Z"
 		},
 		{
-			"checksumSHA1": "oyf23Rqn0CvPD17SwR+5UWK0SCU=",
-			"path": "github.com/reconquest/lineflushwriter-go",
-			"revision": "086cd7d2a087b5686f08731941e5f1cf8121f52b",
-			"revisionTime": "2016-08-18T10:09:42Z"
-		},
-		{
 			"checksumSHA1": "GTSusTEcXS+e4bVB9GW8C9kXpSI=",
 			"path": "github.com/reconquest/loreley",
 			"revision": "2ab6b7470a54bfa9b5b0289f9b4e8fc4839838f7",

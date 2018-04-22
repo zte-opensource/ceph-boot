@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/reconquest/hierr-go"
-	"github.com/reconquest/lineflushwriter-go"
 	"github.com/zte-opensource/ceph-boot/log"
 	"github.com/zte-opensource/ceph-boot/writer"
 	"github.com/zte-opensource/runcmd"
@@ -76,7 +75,7 @@ func (node *Node) Lock(filename string) error {
 		)
 	}
 
-	stderr := lineflushwriter.New(
+	stderr := writer.NewLineFlushWriteCloser(
 		writer.NewPrefixWriteCloser(
 			writer.NewDebugWriteCloser(log.Logger),
 			fmt.Sprintf("%s {flock} <stderr> ", node.String()),
@@ -307,16 +306,16 @@ func (node *Node) CreateRemoteCommand(
 	}
 
 	if prefix == "" {
-		stdout = lineflushwriter.New(
+		stdout = writer.NewLineFlushWriteCloser(
 			writer.NewNopWriteCloser(stdoutBackend),
 			logLock,
 			false)
-		stderr = lineflushwriter.New(
+		stderr = writer.NewLineFlushWriteCloser(
 			writer.NewNopWriteCloser(stderrBackend),
 			logLock,
 			false)
 	} else {
-		stdout = lineflushwriter.New(
+		stdout = writer.NewLineFlushWriteCloser(
 			writer.NewPrefixWriteCloser(
 				writer.NewNopWriteCloser(stdoutBackend),
 				prefix,
@@ -324,7 +323,7 @@ func (node *Node) CreateRemoteCommand(
 			logLock,
 			true,
 		)
-		stderr = lineflushwriter.New(
+		stderr = writer.NewLineFlushWriteCloser(
 			writer.NewPrefixWriteCloser(
 				writer.NewNopWriteCloser(stderrBackend),
 				prefix,

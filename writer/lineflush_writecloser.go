@@ -27,7 +27,7 @@ func NewLineFlushWriteCloser(
 	ensureNewline bool,
 ) *LineFlushWriteCloser {
 	return &LineFlushWriteCloser{
-		Locker: l,
+		Locker:  l,
 		backend: w,
 		buffer:  &bytes.Buffer{},
 

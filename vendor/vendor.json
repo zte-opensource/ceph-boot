@@ -27,12 +27,6 @@
 			"revisionTime": "2016-07-29T07:45:50Z"
 		},
 		{
-			"checksumSHA1": "Sj9pCScw37fPqsv4ihQgq0hR9gY=",
-			"path": "github.com/reconquest/colorgful",
-			"revision": "80abe64d057a40d220b911427664ebcb12b9235b",
-			"revisionTime": "2016-07-05T06:50:25Z"
-		},
-		{
 			"checksumSHA1": "RQv5z2OLzrJOZsulJxvPxChZlN8=",
 			"path": "github.com/reconquest/hierr-go",
 			"revision": "7d09c0176fd2bb7fd71a4349d1253eef9edb2c5c",

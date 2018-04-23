@@ -3,8 +3,6 @@ package log
 import (
 	"fmt"
 
-	"github.com/kovetskiy/lorg"
-	"github.com/reconquest/colorgful"
 	"github.com/reconquest/loreley"
 )
 
@@ -48,31 +46,7 @@ var (
 			234, 255, 22, 1, 1, 19, 245, 85, 255, 160, -1, 140,
 		),
 	}
-
-	logFormat = `${time} ${level:[%s]:right:true} %s`
 )
-
-func GetLoggerTheme(theme string) (lorg.Formatter, error) {
-	switch theme {
-	case "default":
-		return colorgful.ApplyDefaultTheme(
-			logFormat,
-			colorgful.Default,
-		)
-	case "dark":
-		return colorgful.ApplyDefaultTheme(
-			logFormat,
-			colorgful.Dark,
-		)
-	case "light":
-		return colorgful.ApplyDefaultTheme(
-			logFormat,
-			colorgful.Light,
-		)
-	default:
-		return colorgful.Format(theme)
-	}
-}
 
 func getStatusBarTheme(theme string) (*loreley.Style, error) {
 	if format, ok := statusBarThemes[theme]; ok {

@@ -202,7 +202,6 @@ func main() {
 		quiet = args["--quiet"].(bool)
 		level = args["--verbose"].(int)
 
-		logTheme    = args["--log-format"].(string)
 		light       = args["--colors-light"].(bool)
 		dark        = args["--colors-dark"].(bool)
 		_, hasStdin = args["--stdin"].(string)
@@ -232,14 +231,12 @@ func main() {
 
 	switch {
 	case light:
-		logTheme = log.ThemeLight
 		barTheme = log.ThemeLight
 	case dark:
-		logTheme = log.ThemeDark
 		barTheme = log.ThemeDark
 	}
 
-	log.SetupLogger(logTheme, verbose, colorize)
+	log.SetupLogger(verbose, colorize)
 	if !hasStdin && !quiet {
 		log.SetupStatusBar(barTheme)
 	}

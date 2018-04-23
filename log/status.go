@@ -9,19 +9,10 @@ import (
 	"github.com/reconquest/loreley"
 )
 
-func SetupLogger(theme string, verbose verbosity, colorize loreley.ColorizeMode) error {
+func SetupLogger(verbose verbosity, colorize loreley.ColorizeMode) error {
 	loreley.Colorize = colorize
 
-	loggerStyle, err := GetLoggerTheme(theme)
-	if err != nil {
-		Fatalln(hierr.Errorf(
-			err,
-			`can't use given logger style`,
-		))
-		return err
-	}
-
-	SetLoggerStyle(loggerStyle)
+	Logger.SetIndentLines(true)
 
 	SetLoggerVerbosity(verbose)
 

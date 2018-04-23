@@ -1,18 +1,14 @@
 package log
 
 import (
-	"bytes"
 	"fmt"
 	"os"
-	"strings"
 
 	"github.com/kovetskiy/lorg"
-	"github.com/reconquest/loreley"
 )
 
 var (
-	Logger                      = lorg.NewLog()
-	loggerFormattingBasicLength = 0
+	Logger = lorg.NewLog()
 )
 
 func SetLoggerVerbosity(v verbosity) {
@@ -30,25 +26,6 @@ func SetLoggerVerbosity(v verbosity) {
 	case v >= VerbosityNormal:
 		Logger.SetLevel(lorg.LevelInfo)
 	}
-}
-
-func SetLoggerStyle(style lorg.Formatter) {
-	testLogger := lorg.NewLog()
-
-	testLogger.SetFormat(style)
-
-	buffer := &bytes.Buffer{}
-	testLogger.SetOutput(buffer)
-
-	testLogger.Debug(``)
-
-	loggerFormattingBasicLength = len(strings.TrimSuffix(
-		loreley.TrimStyles(buffer.String()),
-		"\n",
-	))
-
-	Logger.SetFormat(style)
-	Logger.SetIndentLines(true)
 }
 
 func Tracef(format string, args ...interface{}) {
@@ -123,13 +100,6 @@ func Fatalln(args ...interface{}) {
 
 func wrapLines(format string, values ...interface{}) string {
 	contents := fmt.Sprintf(format, values...)
-	contents = strings.TrimSuffix(contents, "\n")
-	contents = strings.Replace(
-		contents,
-		"\n",
-		"\n"+strings.Repeat(" ", loggerFormattingBasicLength),
-		-1,
-	)
 
 	return contents
 }

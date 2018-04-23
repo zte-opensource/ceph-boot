@@ -31,7 +31,7 @@ func SetLoggerVerbosity(v verbosity) {
 func Tracef(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	Logger.Tracef(`%s`, wrapLines(format, args...))
+	Logger.Tracef(`%s`, fmt.Sprintf(format, args...))
 
 	DrawStatus()
 }
@@ -43,7 +43,7 @@ func Traceln(args ...interface{}) {
 func Debugf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	Logger.Debugf(`%s`, wrapLines(format, args...))
+	Logger.Debugf(`%s`, fmt.Sprintf(format, args...))
 
 	DrawStatus()
 }
@@ -55,7 +55,7 @@ func Debugln(args ...interface{}) {
 func Infof(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	Logger.Infof(`%s`, wrapLines(format, args...))
+	Logger.Infof(`%s`, fmt.Sprintf(format, args...))
 
 	DrawStatus()
 }
@@ -67,7 +67,7 @@ func Infoln(args ...interface{}) {
 func Warningf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	Logger.Warningf(`%s`, wrapLines(format, args...))
+	Logger.Warningf(`%s`, fmt.Sprintf(format, args...))
 
 	DrawStatus()
 }
@@ -79,7 +79,7 @@ func Warningln(args ...interface{}) {
 func Errorf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	Logger.Errorf(`%s`, wrapLines(format, args...))
+	Logger.Errorf(`%s`, fmt.Sprintf(format, args...))
 }
 
 func Errorln(args ...interface{}) {
@@ -89,7 +89,7 @@ func Errorln(args ...interface{}) {
 func Fatalf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	Logger.Fatalf(`%s`, wrapLines(format, args...))
+	Logger.Fatalf(`%s`, fmt.Sprintf(format, args...))
 
 	os.Exit(1)
 }
@@ -98,22 +98,12 @@ func Fatalln(args ...interface{}) {
 	Fatalf("%s", fmt.Sprint(serializeErrors(args)...))
 }
 
-func wrapLines(format string, values ...interface{}) string {
-	contents := fmt.Sprintf(format, values...)
-
-	return contents
-}
-
 func serializeErrors(args []interface{}) []interface{} {
 	for i, arg := range args {
 		if err, ok := arg.(error); ok {
-			args[i] = serializeError(err)
+			args[i] = fmt.Sprint(err)
 		}
 	}
 
 	return args
-}
-
-func serializeError(err error) string {
-	return fmt.Sprint(err)
 }

@@ -1,6 +1,8 @@
 package log
 
-import "github.com/reconquest/barely"
+import (
+	"github.com/zte-opensource/ceph-boot/statusbar"
+)
 
 type (
 	verbosity int
@@ -15,7 +17,7 @@ const (
 
 var (
 	Conf      Config
-	statusBar *barely.StatusBar
+	statusBar *statusbar.StatusBar
 )
 
 type Config struct {

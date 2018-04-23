@@ -21,12 +21,6 @@
 			"revisionTime": "2018-02-01T00:47:52Z"
 		},
 		{
-			"checksumSHA1": "IOq2VDn/yyTeUSD0cR+RcSBCyAE=",
-			"path": "github.com/reconquest/barely",
-			"revision": "0f12e3bb2e13b4cdba2a41b604187163a861e087",
-			"revisionTime": "2016-07-29T07:45:50Z"
-		},
-		{
 			"checksumSHA1": "+qHaqo0xD6gCdT8v+EN5gf4VJMs=",
 			"path": "github.com/zazab/zhash",
 			"revision": "ad45b89afe7af57319ca32f174e4dabeb00c44e4",

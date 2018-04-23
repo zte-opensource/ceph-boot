@@ -4,9 +4,9 @@ import (
 	"os"
 	"sync"
 
-	"github.com/reconquest/barely"
 	"github.com/zte-opensource/ceph-boot/color"
 	"github.com/zte-opensource/ceph-boot/hierr"
+	"github.com/zte-opensource/ceph-boot/statusbar"
 )
 
 func SetupLogger(verbose verbosity) error {
@@ -30,7 +30,7 @@ func SetupStatusBar(theme string) error {
 	}
 
 	if color.HasTTY(int(os.Stderr.Fd())) {
-		statusBar = barely.NewStatusBar(barStyle.Template)
+		statusBar = statusbar.NewStatusBar(barStyle.Template)
 		statusBar.SetLock(barLock)
 	} else {
 		statusBar = nil

@@ -27,12 +27,6 @@
 			"revisionTime": "2016-07-29T07:45:50Z"
 		},
 		{
-			"checksumSHA1": "Qa81+aknC3p8dslfUIEud30fXmc=",
-			"path": "github.com/reconquest/ser-go",
-			"revision": "47f084a1e4a5433ac3d6ab6cfe8c1e30028a4d76",
-			"revisionTime": "2016-09-22T23:12:29Z"
-		},
-		{
 			"checksumSHA1": "+qHaqo0xD6gCdT8v+EN5gf4VJMs=",
 			"path": "github.com/zazab/zhash",
 			"revision": "ad45b89afe7af57319ca32f174e4dabeb00c44e4",

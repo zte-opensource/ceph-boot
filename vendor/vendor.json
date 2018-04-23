@@ -33,12 +33,6 @@
 			"revisionTime": "2017-08-24T21:38:38Z"
 		},
 		{
-			"checksumSHA1": "GTSusTEcXS+e4bVB9GW8C9kXpSI=",
-			"path": "github.com/reconquest/loreley",
-			"revision": "2ab6b7470a54bfa9b5b0289f9b4e8fc4839838f7",
-			"revisionTime": "2016-07-08T08:05:00Z"
-		},
-		{
 			"checksumSHA1": "Qa81+aknC3p8dslfUIEud30fXmc=",
 			"path": "github.com/reconquest/ser-go",
 			"revision": "47f084a1e4a5433ac3d6ab6cfe8c1e30028a4d76",

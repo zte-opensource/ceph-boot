@@ -21,7 +21,6 @@ import (
 	"github.com/docopt/docopt-go"
 	"github.com/mattn/go-shellwords"
 	"github.com/reconquest/hierr-go"
-	"github.com/reconquest/loreley"
 	"github.com/zte-opensource/ceph-boot/log"
 	"github.com/zte-opensource/runcmd"
 )
@@ -142,17 +141,8 @@ Output format and colors options:
                            Two embedded themes are available by their names:
                            dark and light
                            [default: default]
-    --log-format <f>      Format for the logs.
-                           See https://github.com/reconquest/colorgful  for more
-                           info.
-                           [default: default]
     --colors-dark         Set all available formats to predefined dark theme.
     --colors-light        Set all available formats to predefined light theme.
-    --color <mode>        Specify, whether to use colors:
-                           * never - disable colors;
-                           * auto - use colors only when TTY presents.
-                           * always - always use colorized output.
-                           [default: auto]
 
 Timeout options:
   -c --conn-timeout <ms>  Remote host connection timeout in milliseconds.
@@ -219,16 +209,6 @@ func main() {
 		verbose = log.VerbosityTrace
 	}
 
-	colorize := loreley.ColorizeNever
-	switch args["--color"].(string) {
-	case "always":
-		colorize = loreley.ColorizeAlways
-	case "auto":
-		colorize = loreley.ColorizeOnTTY
-	case "never":
-		colorize = loreley.ColorizeNever
-	}
-
 	switch {
 	case light:
 		barTheme = log.ThemeLight
@@ -236,7 +216,7 @@ func main() {
 		barTheme = log.ThemeDark
 	}
 
-	log.SetupLogger(verbose, colorize)
+	log.SetupLogger(verbose)
 	if !hasStdin && !quiet {
 		log.SetupStatusBar(barTheme)
 	}

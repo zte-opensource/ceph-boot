@@ -3,7 +3,7 @@ package log
 import (
 	"fmt"
 
-	"github.com/reconquest/loreley"
+	"github.com/zte-opensource/ceph-boot/color"
 )
 
 const (
@@ -48,12 +48,12 @@ var (
 	}
 )
 
-func getStatusBarTheme(theme string) (*loreley.Style, error) {
+func getStatusBarTheme(theme string) (*color.Style, error) {
 	if format, ok := statusBarThemes[theme]; ok {
 		theme = format
 	}
 
-	style, err := loreley.CompileWithReset(theme, nil)
+	style, err := color.CompileWithReset(theme, nil)
 	if err != nil {
 		return nil, err
 	}

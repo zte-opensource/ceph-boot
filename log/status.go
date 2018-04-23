@@ -6,12 +6,10 @@ import (
 
 	"github.com/reconquest/barely"
 	"github.com/reconquest/hierr-go"
-	"github.com/reconquest/loreley"
+	"github.com/zte-opensource/ceph-boot/color"
 )
 
-func SetupLogger(verbose verbosity, colorize loreley.ColorizeMode) error {
-	loreley.Colorize = colorize
-
+func SetupLogger(verbose verbosity) error {
 	Logger.SetIndentLines(true)
 
 	SetLoggerVerbosity(verbose)
@@ -31,7 +29,7 @@ func SetupStatusBar(theme string) error {
 		return err
 	}
 
-	if loreley.HasTTY(int(os.Stderr.Fd())) {
+	if color.HasTTY(int(os.Stderr.Fd())) {
 		statusBar = barely.NewStatusBar(barStyle.Template)
 		statusBar.SetLock(barLock)
 	} else {

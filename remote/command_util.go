@@ -1,53 +1,8 @@
-package main
+package remote
 
 import (
-	"fmt"
 	"strings"
-
-	"github.com/mattn/go-shellwords"
-	"github.com/zte-opensource/ceph-boot/hierr"
 )
-
-type RawCommand struct {
-	command   []string
-	args      []string
-	shell     string
-	directory string
-	sudo      bool
-}
-
-func (raw *RawCommand) ParseCommand() (command []string, err error) {
-	commandline := joinCommand(raw.command)
-
-	if raw.directory != "" {
-		commandline = fmt.Sprintf("cd %s && { %s; }",
-			escapeCommandArgumentStrict(raw.directory),
-			commandline,
-		)
-	}
-
-	if len(raw.shell) != 0 {
-		commandline = wrapCommandIntoShell(
-			commandline,
-			raw.shell,
-			raw.args,
-		)
-	}
-
-	if raw.sudo {
-		sudoCommand := []string{"sudo", "-n", "-E", "-H"}
-		commandline = joinCommand(sudoCommand) + " " + commandline
-	}
-
-	command, err = shellwords.Parse(commandline)
-	if err != nil {
-		return nil, hierr.Errorf(
-			err, "unparsable command line: %s", commandline,
-		)
-	}
-
-	return
-}
 
 func wrapCommandIntoShell(command string, shell string, args []string) string {
 	if shell == "" {
@@ -60,7 +15,7 @@ func wrapCommandIntoShell(command string, shell string, args []string) string {
 		return command
 	}
 
-	escapedArgs := []string{}
+	var escapedArgs []string
 	for _, arg := range args {
 		escapedArgs = append(escapedArgs, escapeCommandArgumentStrict(arg))
 	}
@@ -69,7 +24,7 @@ func wrapCommandIntoShell(command string, shell string, args []string) string {
 }
 
 func joinCommand(command []string) string {
-	escapedParts := []string{}
+	var escapedParts []string
 
 	for _, part := range command {
 		escapedParts = append(escapedParts, escapeCommandArgument(part))

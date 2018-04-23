@@ -1,4 +1,4 @@
-package main
+package remote
 
 import (
 	"fmt"
@@ -12,24 +12,40 @@ var (
 	hostRegexp = regexp.MustCompile(`^(?:([^@]+)@)?(.*?)(?::(\d+))?$`)
 )
 
-type address struct {
-	user   string
-	domain string
-	port   int
+type Address struct {
+	User   string
+	Domain string
+	Port   int
 }
 
-func (address address) String() string {
+func (a Address) Equal(o Address) bool {
+	if a.User != o.User {
+		return false
+	}
+
+	if a.Domain != o.Domain {
+		return false
+	}
+
+	if a.Port != o.Port {
+		return false
+	}
+
+	return true
+}
+
+func (a Address) String() string {
 	return fmt.Sprintf(
 		"[%s@%s:%d]",
-		address.user,
-		address.domain,
-		address.port,
+		a.User,
+		a.Domain,
+		a.Port,
 	)
 }
 
-func parseAddress(
+func ParseAddress(
 	host string, defaultUser string, defaultPort int,
-) (address, error) {
+) (Address, error) {
 	matches := hostRegexp.FindStringSubmatch(host)
 
 	var (
@@ -47,36 +63,28 @@ func parseAddress(
 		var err error
 		port, err = strconv.Atoi(rawPort)
 		if err != nil {
-			return address{}, hierr.Errorf(
+			return Address{}, hierr.Errorf(
 				err,
 				`can't parse port number: '%s'`, rawPort,
 			)
 		}
 	}
 
-	return address{
-		user:   user,
-		domain: domain,
-		port:   port,
+	return Address{
+		User:   user,
+		Domain: domain,
+		Port:   port,
 	}, nil
 }
 
-func getUniqueAddresses(addresses []address) []address {
-	result := []address{}
+func GetUniqueAddresses(addresses []Address) []Address {
+	var result []Address
 
 	for _, origin := range addresses {
 		keep := true
 
 		for _, another := range result {
-			if origin.user != another.user {
-				continue
-			}
-
-			if origin.domain != another.domain {
-				continue
-			}
-
-			if origin.port != another.port {
+			if !origin.Equal(another) {
 				continue
 			}
 

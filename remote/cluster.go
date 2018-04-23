@@ -1,4 +1,4 @@
-package main
+package remote
 
 import (
 	"fmt"
@@ -6,50 +6,43 @@ import (
 	"reflect"
 	"sync"
 	"sync/atomic"
-	"time"
 
 	"github.com/zte-opensource/ceph-boot/hierr"
 	"github.com/zte-opensource/ceph-boot/log"
 	"github.com/zte-opensource/ceph-boot/writer"
 )
 
-type ClusterConfig struct {
-	addresses    []address
-	lockFile     string
-	noLock       bool
-	noLockFail   bool
-	noConnFail   bool
-	hbInterval   time.Duration
-	hbCancelCond *sync.Cond
-}
-
 type Cluster struct {
-	config ClusterConfig
-	nodes  []*Node
-	stdin  io.WriteCloser
+	config Config
+
+	Nodes []*Node
+	Stdin io.WriteCloser
+
+	Execution []*Command
 }
 
-func NewCluster(config *ClusterConfig) *Cluster {
-	return &Cluster{config: *config}
+func NewCluster(config Config) *Cluster {
+	return &Cluster{config: config}
 }
 
-// connectToCluster tries to acquire atomic file lock on each of
+// Connect tries to acquire atomic file lock on each of
 // specified remote nodes. lockFile is used to specify target lock file, it
 // must exist on every node. runnerFactory will be used to make connection
 // to remote node. If noLockFail is given, then only warning will be printed
 // if lock process has been failed.
 func (cluster *Cluster) Connect(
-	runnerFactory runnerFactory,
+	runnerFactory RunnerFactory,
 ) error {
 	config := cluster.config
 
-	addresses := config.addresses
-	lockFile := config.lockFile
-	noLock := config.noLock
-	noLockFail := config.noLockFail
-	noConnFail := config.noConnFail
-	hbInterval := config.hbInterval
-	hbCancelCond := config.hbCancelCond
+	pool := config.Pool
+	addresses := config.Addresses
+	lockFile := config.LockFile
+	noLock := config.NoLock
+	noLockFail := config.NoLockFail
+	noConnFail := config.NoConnFail
+	hbInterval := config.HbInterval
+	hbCancelCond := config.HbCancelCond
 
 	errors := make(chan error, 0)
 	nodeAddMutex := &sync.Mutex{}
@@ -71,8 +64,8 @@ func (cluster *Cluster) Connect(
 	log.SetStatus(stat)
 
 	for _, nodeAddress := range addresses {
-		go func(nodeAddress address) {
-			pool.run(func() {
+		go func(nodeAddress Address) {
+			pool.Run(func() {
 				failed := false
 
 				node := NewNode(nodeAddress)
@@ -114,7 +107,7 @@ func (cluster *Cluster) Connect(
 					nodeAddMutex.Lock()
 					defer nodeAddMutex.Unlock()
 
-					cluster.nodes = append(cluster.nodes, node)
+					cluster.Nodes = append(cluster.Nodes, node)
 				}
 
 				log.Debugf(
@@ -157,7 +150,7 @@ func (cluster *Cluster) Connect(
 }
 
 func (cluster *Cluster) RunCommand(
-	command []string,
+	c *Command,
 	serial bool,
 ) error {
 	var (
@@ -166,6 +159,8 @@ func (cluster *Cluster) RunCommand(
 		logLock    = &sync.Mutex{}
 		stdinsLock = &sync.Mutex{}
 		outputLock = &sync.Mutex{}
+
+		pool = cluster.config.Pool
 	)
 
 	if !serial {
@@ -182,7 +177,7 @@ func (cluster *Cluster) RunCommand(
 			Success int
 		}{
 			Phase: `exec`,
-			Total: len(cluster.nodes),
+			Total: len(cluster.Nodes),
 		}
 	)
 
@@ -194,24 +189,26 @@ func (cluster *Cluster) RunCommand(
 	}
 
 	errors := make(chan *nodeErr, 0)
-	for _, node := range cluster.nodes {
+	executionLock := &sync.Mutex{}
+
+	for _, node := range cluster.Nodes {
 		go func(node *Node) {
-			pool.run(func() {
+			pool.Run(func() {
 				log.Tracef(
 					"%s",
 					hierr.Errorf(
-						command,
+						c.EscapedCommand,
 						"%s starting command",
 						node.String(),
 					).Error(),
 				)
 
-				// create runcmd.CmdWorker to prepare running command on remote node
-				remoteCommand, err := node.CreateRemoteCommand(
-					command,
-					logLock,
-					outputLock,
-				)
+				prefix := ""
+				if log.Conf.Verbose != log.VerbosityQuiet {
+					prefix = node.address.Domain + " "
+				}
+
+				err := c.Run(node, prefix, logLock, outputLock)
 				if err != nil {
 					errors <- &nodeErr{err, node}
 
@@ -224,32 +221,15 @@ func (cluster *Cluster) RunCommand(
 					return
 				}
 
-				// run command on remote node
-				err = remoteCommand.worker.Start()
-				if err != nil {
-					errors <- &nodeErr{
-						hierr.Errorf(
-							err,
-							`can't start remote command`,
-						),
-						node,
-					}
+				executionLock.Lock()
+				defer executionLock.Unlock()
 
-					stat.Lock()
-					defer stat.Unlock()
-
-					stat.Total--
-					stat.Fails++
-
-					return
-				}
-
-				node.remoteCommand = remoteCommand
+				cluster.Execution = append(cluster.Execution, c)
 
 				stdinsLock.Lock()
 				defer stdinsLock.Unlock()
 
-				stdins = append(stdins, remoteCommand.stdin)
+				stdins = append(stdins, c.Stdin)
 
 				stat.Lock()
 				defer stat.Unlock()
@@ -261,7 +241,7 @@ func (cluster *Cluster) RunCommand(
 		}(node)
 	}
 
-	for range cluster.nodes {
+	for range cluster.Nodes {
 		err := <-errors
 		if err != nil {
 			return hierr.Errorf(
@@ -272,19 +252,19 @@ func (cluster *Cluster) RunCommand(
 		}
 	}
 
-	cluster.stdin = writer.NewMultiWriteCloser(stdins)
+	cluster.Stdin = writer.NewMultiWriteCloser(stdins)
 
 	return nil
 }
 
 func (cluster *Cluster) Wait() error {
-	log.Tracef(`waiting %d nodes to finish`, len(cluster.nodes))
+	log.Tracef(`waiting %d nodes to finish`, len(cluster.Execution))
 
-	results := make(chan *RemoteCommandResult, 0)
-	for _, node := range cluster.nodes {
-		go func(rc *RemoteCommand) {
-			results <- &RemoteCommandResult{rc, rc.Wait()}
-		}(node.remoteCommand)
+	results := make(chan *CommandResult, 0)
+	for _, c := range cluster.Execution {
+		go func(c *Command) {
+			results <- &CommandResult{c, c.Wait()}
+		}(c)
 	}
 
 	executionErrors := fmt.Errorf(
@@ -299,7 +279,7 @@ func (cluster *Cluster) Wait() error {
 			Success int
 		}{
 			Phase: `wait`,
-			Total: len(cluster.nodes),
+			Total: len(cluster.Execution),
 		}
 
 		exitCodes = map[int]int{}
@@ -307,17 +287,17 @@ func (cluster *Cluster) Wait() error {
 
 	log.SetStatus(stat)
 
-	for range cluster.nodes {
+	for range cluster.Execution {
 		result := <-results
-		if result.err != nil {
-			exitCodes[result.rc.exitCode]++
+		if result.Err != nil {
+			exitCodes[result.C.ExitCode]++
 
 			executionErrors = hierr.Push(
 				executionErrors,
 				hierr.Errorf(
-					result.err,
+					result.Err,
 					`%s has finished with error`,
-					result.rc.node.String(),
+					result.C.Node,
 				),
 			)
 
@@ -326,8 +306,8 @@ func (cluster *Cluster) Wait() error {
 
 			log.Tracef(
 				`%s finished with exit code: '%d'`,
-				result.rc.node.String(),
-				result.rc.exitCode,
+				result.C.Node,
+				result.C.ExitCode,
 			)
 
 			continue
@@ -337,17 +317,17 @@ func (cluster *Cluster) Wait() error {
 
 		log.Tracef(
 			`%s has successfully finished execution`,
-			result.rc.node.String(),
+			result.C.Node,
 		)
 	}
 
 	if stat.Fails > 0 {
-		if stat.Fails == len(cluster.nodes) {
+		if stat.Fails == len(cluster.Execution) {
 			exitCodesValue := reflect.ValueOf(exitCodes)
 
 			topError := fmt.Errorf(
 				`commands are failed on all %d nodes`,
-				len(cluster.nodes),
+				len(cluster.Execution),
 			)
 
 			for _, key := range exitCodesValue.MapKeys() {
@@ -368,7 +348,7 @@ func (cluster *Cluster) Wait() error {
 			executionErrors,
 			`commands are failed on %d out of %d nodes`,
 			stat.Fails,
-			len(cluster.nodes),
+			len(cluster.Execution),
 		)
 	}
 

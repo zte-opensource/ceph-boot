@@ -22,6 +22,7 @@ import (
 	"github.com/mattn/go-shellwords"
 	"github.com/zte-opensource/ceph-boot/hierr"
 	"github.com/zte-opensource/ceph-boot/log"
+	"github.com/zte-opensource/ceph-boot/remote"
 	"github.com/zte-opensource/runcmd"
 )
 
@@ -64,7 +65,6 @@ Required options:
                            If value is started from '/' or from './', then it's
                            considered file which should be used to read hosts
                            from.
-  -s --read-stdin         Read hosts from stdin in addition to other flags.
 
 Options:
   -h --help               Show this help.
@@ -124,7 +124,7 @@ Advanced options:
                            shell wrapper will be used. If any args are given
                            using '-g', they will be appended to shell
                            invocation.
-                           [default: ` + defaultRemoteExecutionShell + `]
+                           [default: bash -c '{}']
   -d --threads <n>        Set threads count which will be used for connection,
                            locking and execution commands.
                            [default: 16].
@@ -168,26 +168,49 @@ const (
 	runsDirectory = "/var/run/orgalorg/"
 
 	defaultLockFile = "/"
-
-	defaultRemoteExecutionShell = "bash -c '{}'"
 )
 
 var (
 	sshPasswordPrompt   = "Password: "
 	sshPassphrasePrompt = "Key passphrase: "
-)
 
-var (
-	pool *threadPool
-)
-
-var (
-	exit = os.Exit
+	pool *remote.ThreadPool
 )
 
 func main() {
 	args := parseArgs()
 
+	err := realMain(args)
+	if err != nil {
+		log.Fatalln(err)
+	}
+}
+
+func parseArgs() map[string]interface{} {
+	currentUser, err := user.Current()
+	if err != nil {
+		log.Fatalln(hierr.Errorf(
+			err,
+			`can't get current user`,
+		))
+	}
+
+	usage := usage
+
+	usage = strings.Replace(usage, "$USER", currentUser.Username, -1)
+	usage = strings.Replace(usage, "$HOME", currentUser.HomeDir, -1)
+	usage = strings.Replace(usage, "$ROOT", runsDirectory, -1)
+	usage = strings.Replace(usage, "$LOCK", defaultLockFile, -1)
+
+	args, err := docopt.Parse(usage, nil, true, version, true)
+	if err != nil {
+		panic(err)
+	}
+
+	return args
+}
+
+func realMain(args map[string]interface{}) error {
 	var (
 		quiet = args["--quiet"].(bool)
 		level = args["--verbose"].(int)
@@ -196,7 +219,14 @@ func main() {
 		dark        = args["--colors-dark"].(bool)
 		_, hasStdin = args["--stdin"].(string)
 		barTheme    = args["--bar-format"].(string)
+
+		poolSizeRaw = args["--threads"].(string)
 	)
+
+	poolSize, err := strconv.Atoi(poolSizeRaw)
+	if err != nil {
+		return hierr.Errorf(err, "can't parse threads count")
+	}
 
 	verbose := log.VerbosityNormal
 	if quiet {
@@ -221,69 +251,25 @@ func main() {
 		log.SetupStatusBar(barTheme)
 	}
 
-	poolSize, err := parseThreadPoolSize(args)
-	if err != nil {
-		log.Errorln(hierr.Errorf(
-			err,
-			`--threads given invalid value`,
-		))
-	}
-
-	pool = newThreadPool(poolSize)
+	pool = remote.NewThreadPool(poolSize)
 
 	switch {
+	case args["--command"].(bool):
+		err = handleEvaluate(args, pool)
 	case args["--lock"].(bool):
 		fallthrough
 	case args["--upload"].(bool):
 		fallthrough
 	case args["--sync"].(bool):
-		err = handleSynchronize(args)
-	case args["--command"].(bool):
-		err = handleEvaluate(args)
+		err = handleSynchronize(args, pool)
+	default:
+		err = fmt.Errorf("invalid command")
 	}
 
-	if err != nil {
-		log.Fatalln(err)
-	}
+	return err
 }
 
-func parseArgs() map[string]interface{} {
-	usage, err := formatUsage(string(usage))
-	if err != nil {
-		log.Fatalln(hierr.Errorf(
-			err,
-			`can't format usage`,
-		))
-	}
-
-	args, err := docopt.Parse(usage, nil, true, version, true)
-	if err != nil {
-		panic(err)
-	}
-
-	return args
-}
-
-func formatUsage(template string) (string, error) {
-	currentUser, err := user.Current()
-	if err != nil {
-		return "", hierr.Errorf(
-			err,
-			`can't get current user`,
-		)
-	}
-
-	usage := template
-
-	usage = strings.Replace(usage, "$USER", currentUser.Username, -1)
-	usage = strings.Replace(usage, "$HOME", currentUser.HomeDir, -1)
-	usage = strings.Replace(usage, "$ROOT", runsDirectory, -1)
-	usage = strings.Replace(usage, "$LOCK", defaultLockFile, -1)
-
-	return usage, nil
-}
-
-func handleEvaluate(args map[string]interface{}) error {
+func handleEvaluate(args map[string]interface{}, pool *remote.ThreadPool) error {
 	var (
 		stdin, _   = args["--stdin"].(string)
 		rootDir, _ = args["--root"].(string)
@@ -292,33 +278,121 @@ func handleEvaluate(args map[string]interface{}) error {
 		serial     = args["--serial"].(bool)
 
 		commandline = args["<command>"].([]string)
+
+		hosts = args["--host"].([]string)
+
+		sendTimeout = args["--send-timeout"].(string)
+		defaultUser = args["--user"].(string)
+
+		sshForwarding = args["--agent"].(bool)
+
+		askPassword = args["--password"].(bool)
+
+		sshKeyPath, _ = args["--key"].(string)
+		lockFile, _   = args["--lock-file"].(string)
+
+		noConnFail = args["--no-conn-fail"].(bool)
+		noLockFail = args["--no-lock-fail"].(bool)
+
+		noLock = args["--no-lock"].(bool)
 	)
 
 	canceler := sync.NewCond(&sync.Mutex{})
 
-	cluster, err := connectAndLock(args, canceler)
+	addresses, err := parseAddresses(hosts, defaultUser)
 	if err != nil {
-		return err
+		return hierr.Errorf(
+			err,
+			`can't parse all specified addresses`,
+		)
 	}
 
-	raw := &RawCommand{
-		shell:     shell,
-		sudo:      sudo,
-		command:   commandline,
-		directory: rootDir,
-	}
-
-	command, err := raw.ParseCommand()
+	timeouts, err := makeTimeouts(args)
 	if err != nil {
-		return err
+		return hierr.Errorf(
+			err,
+			`can't parse SSH connection timeouts`,
+		)
 	}
 
-	err = cluster.RunCommand(command, serial)
+	runnerFactory, err := createRunnerFactory(timeouts, sshKeyPath, askPassword, sshForwarding)
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`can't create runner factory`,
+		)
+	}
+
+	log.Debugf(`using %d threads`, pool.Size)
+
+	log.Debugf(`connecting to %d nodes`, len(addresses))
+
+	if lockFile == "" {
+		if rootDir == "" {
+			lockFile = defaultLockFile
+		} else {
+			lockFile = rootDir
+		}
+	}
+
+	heartbeatMillisecondsBase, err := strconv.Atoi(sendTimeout)
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`can't use --send-timeout as heartbeat timeout`,
+		)
+	}
+
+	heartbeatMilliseconds := time.Duration(
+		float64(heartbeatMillisecondsBase)*heartbeatTimeoutCoefficient,
+	) * time.Millisecond
+
+	config := remote.Config{
+		Pool:         pool,
+		Addresses:    addresses,
+		LockFile:     lockFile,
+		NoLock:       noLock,
+		NoLockFail:   noLockFail,
+		NoConnFail:   noConnFail,
+		HbInterval:   heartbeatMilliseconds,
+		HbCancelCond: canceler,
+	}
+
+	cluster := remote.NewCluster(config)
+	err = cluster.Connect(runnerFactory)
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`connecting to cluster failed`,
+		)
+	}
+
+	if noLock {
+		log.Debugf(`connection established to %d nodes`, len(cluster.Nodes))
+	} else {
+		log.Debugf(`global lock acquired on %d nodes`, len(cluster.Nodes))
+	}
+
+	c, err := remote.New(
+		rootDir,
+		sudo,
+		shell,
+		commandline,
+		nil,
+	)
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			"invalid command line",
+		)
+	}
+
+	err = cluster.RunCommand(c, serial)
 	if err != nil {
 		return hierr.Errorf(
 			err,
 			`can't run remote execution on %d nodes`,
-			len(cluster.nodes),
+			len(cluster.Execution),
 		)
 	}
 
@@ -334,7 +408,7 @@ func handleEvaluate(args map[string]interface{}) error {
 			)
 		}
 
-		_, err = io.Copy(cluster.stdin, inputFile)
+		_, err = io.Copy(cluster.Stdin, inputFile)
 		if err != nil {
 			return hierr.Errorf(
 				err,
@@ -345,7 +419,7 @@ func handleEvaluate(args map[string]interface{}) error {
 
 	log.Debugf(`commands are running, waiting for finish`)
 
-	err = cluster.stdin.Close()
+	err = cluster.Stdin.Close()
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -366,7 +440,7 @@ func handleEvaluate(args map[string]interface{}) error {
 	return nil
 }
 
-func handleSynchronize(args map[string]interface{}) error {
+func handleSynchronize(args map[string]interface{}, pool *remote.ThreadPool) error {
 	var (
 		stdin, _   = args["--stdin"].(string)
 		rootDir, _ = args["--root"].(string)
@@ -387,15 +461,101 @@ func handleSynchronize(args map[string]interface{}) error {
 		preserveUID = !args["--no-preserve-uid"].(bool)
 		preserveGID = !args["--no-preserve-gid"].(bool)
 
-		filesList []file
+		hosts = args["--host"].([]string)
+
+		sendTimeout = args["--send-timeout"].(string)
+		defaultUser = args["--user"].(string)
+
+		sshForwarding = args["--agent"].(bool)
+
+		askPassword = args["--password"].(bool)
+
+		sshKeyPath, _ = args["--key"].(string)
+		lockFile, _   = args["--lock-file"].(string)
+
+		noConnFail = args["--no-conn-fail"].(bool)
+		noLockFail = args["--no-lock-fail"].(bool)
+
+		noLock = args["--no-lock"].(bool)
+
+		filesList []remote.File
 		err       error
 	)
 
 	canceler := sync.NewCond(&sync.Mutex{})
 
-	cluster, err := connectAndLock(args, canceler)
+	addresses, err := parseAddresses(hosts, defaultUser)
 	if err != nil {
-		return err
+		return hierr.Errorf(
+			err,
+			`can't parse all specified addresses`,
+		)
+	}
+
+	timeouts, err := makeTimeouts(args)
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`can't parse SSH connection timeouts`,
+		)
+	}
+
+	runnerFactory, err := createRunnerFactory(timeouts, sshKeyPath, askPassword, sshForwarding)
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`can't create runner factory`,
+		)
+	}
+
+	log.Debugf(`using %d threads`, pool.Size)
+
+	log.Debugf(`connecting to %d nodes`, len(addresses))
+
+	if lockFile == "" {
+		if rootDir == "" {
+			lockFile = defaultLockFile
+		} else {
+			lockFile = rootDir
+		}
+	}
+
+	heartbeatMillisecondsBase, err := strconv.Atoi(sendTimeout)
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`can't use --send-timeout as heartbeat timeout`,
+		)
+	}
+
+	heartbeatMilliseconds := time.Duration(
+		float64(heartbeatMillisecondsBase)*heartbeatTimeoutCoefficient,
+	) * time.Millisecond
+
+	config := remote.Config{
+		Pool:         pool,
+		Addresses:    addresses,
+		LockFile:     lockFile,
+		NoLock:       noLock,
+		NoLockFail:   noLockFail,
+		NoConnFail:   noConnFail,
+		HbInterval:   heartbeatMilliseconds,
+		HbCancelCond: canceler,
+	}
+
+	cluster := remote.NewCluster(config)
+	err = cluster.Connect(runnerFactory)
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`connecting to cluster failed`,
+		)
+	}
+
+	if noLock {
+		log.Debugf(`connection established to %d nodes`, len(cluster.Nodes))
+	} else {
+		log.Debugf(`global lock acquired on %d nodes`, len(cluster.Nodes))
 	}
 
 	if lockOnly {
@@ -409,7 +569,7 @@ func handleSynchronize(args map[string]interface{}) error {
 	}
 
 	log.Debugf(`building files list from %d sources`, len(fileSources))
-	filesList, err = getFilesList(relative, fileSources...)
+	filesList, err = remote.GetFilesList(relative, fileSources...)
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -423,7 +583,7 @@ func handleSynchronize(args map[string]interface{}) error {
 	log.Debugf(`file upload started into: '%s'`, rootDir)
 
 	// start tar command which waits files on stdin to extract
-	err = startArchiveReceivers(cluster, rootDir, sudo, serial)
+	err = remote.StartArchiveReceivers(cluster, rootDir, sudo, serial)
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -431,8 +591,8 @@ func handleSynchronize(args map[string]interface{}) error {
 		)
 	}
 
-	err = archiveFilesToWriter(
-		cluster.stdin,
+	err = remote.ArchiveFilesToWriter(
+		cluster.Stdin,
 		filesList,
 		preserveUID,
 		preserveGID,
@@ -446,7 +606,7 @@ func handleSynchronize(args map[string]interface{}) error {
 
 	log.Tracef(`waiting file upload to finish`)
 
-	err = cluster.stdin.Close()
+	err = cluster.Stdin.Close()
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -479,25 +639,20 @@ func handleSynchronize(args map[string]interface{}) error {
 		)
 	}
 
-	raw := &RawCommand{
-		shell:     shell,
-		sudo:      sudo,
-		command:   commandline,
-		args:      commandArgs,
-		directory: rootDir,
-	}
-
-	command, err := raw.ParseCommand()
+	c, err := remote.New(rootDir, sudo, shell, commandline, commandArgs)
 	if err != nil {
-		return err
+		return hierr.Errorf(
+			err,
+			"invalid command line",
+		)
 	}
 
-	err = cluster.RunCommand(command, serial)
+	err = cluster.RunCommand(c, serial)
 	if err != nil {
 		return hierr.Errorf(
 			err,
 			`can't run remote execution on %d nodes`,
-			len(cluster.nodes),
+			len(cluster.Execution),
 		)
 	}
 
@@ -513,7 +668,7 @@ func handleSynchronize(args map[string]interface{}) error {
 			)
 		}
 
-		_, err = io.Copy(cluster.stdin, inputFile)
+		_, err = io.Copy(cluster.Stdin, inputFile)
 		if err != nil {
 			return hierr.Errorf(
 				err,
@@ -524,7 +679,7 @@ func handleSynchronize(args map[string]interface{}) error {
 
 	log.Debugf(`commands are running, waiting for finish`)
 
-	err = cluster.stdin.Close()
+	err = cluster.Stdin.Close()
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -543,107 +698,6 @@ func handleSynchronize(args map[string]interface{}) error {
 	}
 
 	return nil
-}
-
-func connectAndLock(
-	args map[string]interface{},
-	canceler *sync.Cond,
-) (*Cluster, error) {
-	var (
-		hosts = args["--host"].([]string)
-
-		sendTimeout = args["--send-timeout"].(string)
-		defaultUser = args["--user"].(string)
-
-		sshForwarding = args["--agent"].(bool)
-
-		askPassword = args["--password"].(bool)
-		fromStdin   = args["--read-stdin"].(bool)
-
-		rootDir, _    = args["--root"].(string)
-		sshKeyPath, _ = args["--key"].(string)
-		lockFile, _   = args["--lock-file"].(string)
-
-		noConnFail = args["--no-conn-fail"].(bool)
-		noLockFail = args["--no-lock-fail"].(bool)
-
-		noLock = args["--no-lock"].(bool)
-	)
-
-	addresses, err := parseAddresses(hosts, defaultUser, fromStdin)
-	if err != nil {
-		return nil, hierr.Errorf(
-			err,
-			`can't parse all specified addresses`,
-		)
-	}
-
-	timeouts, err := makeTimeouts(args)
-	if err != nil {
-		return nil, hierr.Errorf(
-			err,
-			`can't parse SSH connection timeouts`,
-		)
-	}
-
-	runnerFactory, err := createRunnerFactory(timeouts, sshKeyPath, askPassword, sshForwarding)
-	if err != nil {
-		return nil, hierr.Errorf(
-			err,
-			`can't create runner factory`,
-		)
-	}
-
-	log.Debugf(`using %d threads`, pool.size)
-
-	log.Debugf(`connecting to %d nodes`, len(addresses))
-
-	if lockFile == "" {
-		if rootDir == "" {
-			lockFile = defaultLockFile
-		} else {
-			lockFile = rootDir
-		}
-	}
-
-	heartbeatMillisecondsBase, err := strconv.Atoi(sendTimeout)
-	if err != nil {
-		return nil, hierr.Errorf(
-			err,
-			`can't use --send-timeout as heartbeat timeout`,
-		)
-	}
-
-	heartbeatMilliseconds := time.Duration(
-		float64(heartbeatMillisecondsBase)*heartbeatTimeoutCoefficient,
-	) * time.Millisecond
-
-	clusterConfig := &ClusterConfig{
-		addresses:    addresses,
-		lockFile:     lockFile,
-		noLock:       noLock,
-		noLockFail:   noLockFail,
-		noConnFail:   noConnFail,
-		hbInterval:   heartbeatMilliseconds,
-		hbCancelCond: canceler,
-	}
-
-	cluster := NewCluster(clusterConfig)
-	err = cluster.Connect(runnerFactory)
-	if err != nil {
-		return nil, hierr.Errorf(
-			err,
-			`connecting to cluster failed`,
-		)
-	}
-
-	if noLock {
-		log.Debugf(`connection established to %d nodes`, len(cluster.nodes))
-	} else {
-		log.Debugf(`global lock acquired on %d nodes`, len(cluster.nodes))
-	}
-
-	return cluster, nil
 }
 
 func readSSHKey(path string) ([]byte, error) {
@@ -718,7 +772,7 @@ func createRunnerFactory(
 	sshKeyPath string,
 	askPassword bool,
 	sshForwarding bool,
-) (runnerFactory, error) {
+) (remote.RunnerFactory, error) {
 	switch {
 	case askPassword:
 		var password string
@@ -731,7 +785,7 @@ func createRunnerFactory(
 			)
 		}
 
-		return createRemoteRunnerFactoryWithPassword(
+		return remote.CreateRemoteRunnerFactoryWithPassword(
 			password,
 			timeouts,
 		), nil
@@ -742,7 +796,7 @@ func createRunnerFactory(
 			return nil, fmt.Errorf(`can't find ssh-agent socket`)
 		}
 
-		return createRemoteRunnerFactoryWithAgent(
+		return remote.CreateRemoteRunnerFactoryWithAgent(
 			sock,
 			timeouts,
 		), nil
@@ -757,7 +811,7 @@ func createRunnerFactory(
 			)
 		}
 
-		return createRemoteRunnerFactoryWithKey(
+		return remote.CreateRemoteRunnerFactoryWithKey(
 			string(key),
 			timeouts,
 		), nil
@@ -772,18 +826,11 @@ func createRunnerFactory(
 func parseAddresses(
 	hosts []string,
 	defaultUser string,
-	fromStdin bool,
-) ([]address, error) {
+) ([]remote.Address, error) {
 	var (
-		hostsToParse = []string{}
+		hostsToParse []string
+		addresses    []remote.Address
 	)
-
-	if fromStdin {
-		scanner := bufio.NewScanner(os.Stdin)
-		for scanner.Scan() {
-			hostsToParse = append(hostsToParse, scanner.Text())
-		}
-	}
 
 	for _, host := range hosts {
 		if strings.HasPrefix(host, "/") || strings.HasPrefix(host, "./") {
@@ -805,10 +852,8 @@ func parseAddresses(
 		}
 	}
 
-	addresses := []address{}
-
 	for _, host := range hostsToParse {
-		parsedAddress, err := parseAddress(
+		parsedAddress, err := remote.ParseAddress(
 			host, defaultUser, defaultSSHPort,
 		)
 		if err != nil {
@@ -822,7 +867,7 @@ func parseAddresses(
 		addresses = append(addresses, parsedAddress)
 	}
 
-	return getUniqueAddresses(addresses), nil
+	return remote.GetUniqueAddresses(addresses), nil
 }
 
 func readPassword(prompt string) (string, error) {

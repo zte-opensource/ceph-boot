@@ -1,4 +1,4 @@
-package main
+package remote
 
 import (
 	"fmt"
@@ -7,14 +7,14 @@ import (
 )
 
 type (
-	runnerFactory func(address address) (runcmd.Runner, error)
+	RunnerFactory func(address Address) (runcmd.Runner, error)
 )
 
-func createRemoteRunnerFactoryWithKey(
+func CreateRemoteRunnerFactoryWithKey(
 	key string,
 	timeouts *runcmd.Timeouts,
-) runnerFactory {
-	return func(address address) (runcmd.Runner, error) {
+) RunnerFactory {
+	return func(address Address) (runcmd.Runner, error) {
 		return createRunner(
 			runcmd.NewRemoteRawKeyAuthRunnerWithTimeouts,
 			key,
@@ -24,11 +24,11 @@ func createRemoteRunnerFactoryWithKey(
 	}
 }
 
-func createRemoteRunnerFactoryWithPassword(
+func CreateRemoteRunnerFactoryWithPassword(
 	password string,
 	timeouts *runcmd.Timeouts,
-) runnerFactory {
-	return func(address address) (runcmd.Runner, error) {
+) RunnerFactory {
+	return func(address Address) (runcmd.Runner, error) {
 		return createRunner(
 			runcmd.NewRemotePassAuthRunnerWithTimeouts,
 			password,
@@ -38,11 +38,11 @@ func createRemoteRunnerFactoryWithPassword(
 	}
 }
 
-func createRemoteRunnerFactoryWithAgent(
+func CreateRemoteRunnerFactoryWithAgent(
 	sock string,
 	timeouts *runcmd.Timeouts,
-) runnerFactory {
-	return func(address address) (runcmd.Runner, error) {
+) RunnerFactory {
+	return func(address Address) (runcmd.Runner, error) {
 		return createRunner(
 			runcmd.NewRemoteAgentAuthRunnerWithTimeouts,
 			sock,
@@ -55,12 +55,12 @@ func createRemoteRunnerFactoryWithAgent(
 func createRunner(
 	factory func(string, string, string, runcmd.Timeouts) (*runcmd.Remote, error),
 	auth string,
-	address address,
+	address Address,
 	timeouts runcmd.Timeouts,
 ) (runcmd.Runner, error) {
 	return factory(
-		address.user,
-		fmt.Sprintf("%s:%d", address.domain, address.port),
+		address.User,
+		fmt.Sprintf("%s:%d", address.Domain, address.Port),
 		auth,
 		timeouts,
 	)

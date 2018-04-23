@@ -1,4 +1,4 @@
-package main
+package remote
 
 import (
 	"archive/tar"
@@ -13,12 +13,12 @@ import (
 	"github.com/zte-opensource/ceph-boot/writer"
 )
 
-type file struct {
+type File struct {
 	path string
 	size int
 }
 
-func startArchiveReceivers(
+func StartArchiveReceivers(
 	cluster *Cluster,
 	rootDir string,
 	sudo bool,
@@ -32,19 +32,16 @@ func startArchiveReceivers(
 		command = append(command, `--verbose`)
 	}
 
-	raw := &RawCommand{
-		command: command,
-		shell:   defaultRemoteExecutionShell,
-		sudo:    sudo,
-	}
-
-	command, err := raw.ParseCommand()
+	c, err := New("", sudo, defaultRemoteExecutionShell, command, nil)
 	if err != nil {
-		return err
+		return hierr.Errorf(
+			err,
+			"invalid command line",
+		)
 	}
 
 	err = cluster.RunCommand(
-		command,
+		c,
 		serial,
 	)
 	if err != nil {
@@ -58,9 +55,9 @@ func startArchiveReceivers(
 	return nil
 }
 
-func archiveFilesToWriter(
+func ArchiveFilesToWriter(
 	target io.WriteCloser,
-	files []file,
+	files []File,
 	preserveUID, preserveGID bool,
 ) error {
 	workDir, err := os.Getwd()
@@ -241,8 +238,8 @@ func writeFileToArchive(
 	return nil
 }
 
-func getFilesList(relative bool, sources ...string) ([]file, error) {
-	files := []file{}
+func GetFilesList(relative bool, sources ...string) ([]File, error) {
+	var files []File
 
 	for _, source := range sources {
 		err := filepath.Walk(
@@ -267,7 +264,7 @@ func getFilesList(relative bool, sources ...string) ([]file, error) {
 					}
 				}
 
-				files = append(files, file{
+				files = append(files, File{
 					path: path,
 					size: int(info.Size()),
 				})

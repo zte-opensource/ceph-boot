@@ -1,4 +1,4 @@
-package main
+package remote
 
 import (
 	"testing"
@@ -38,7 +38,7 @@ func TestParseAddress_ParseValidDomainAddressWithDefaults(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		parsed, err := parseAddress(
+		parsed, err := ParseAddress(
 			test.Host, test.DefaultUser, test.DefaultPort,
 		)
 

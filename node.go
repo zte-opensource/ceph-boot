@@ -54,8 +54,6 @@ func (node *Node) Lock(filename string) error {
 		),
 	}
 
-	logMutex := &sync.Mutex{}
-
 	log.Traceln(hierr.Errorf(
 		lockCommandLine,
 		`%s running lock command`,
@@ -74,17 +72,6 @@ func (node *Node) Lock(filename string) error {
 			`can't get control stdout pipe from lock process`,
 		)
 	}
-
-	stderr := writer.NewLineFlushWriteCloser(
-		writer.NewPrefixWriteCloser(
-			writer.NewDebugWriteCloser(log.Logger),
-			fmt.Sprintf("%s {flock} <stderr> ", node.String()),
-		),
-		logMutex,
-		true,
-	)
-
-	lockCommand.SetStderr(stderr)
 
 	stdin, err := lockCommand.StdinPipe()
 	if err != nil {

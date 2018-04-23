@@ -27,12 +27,6 @@
 			"revisionTime": "2016-07-29T07:45:50Z"
 		},
 		{
-			"checksumSHA1": "RQv5z2OLzrJOZsulJxvPxChZlN8=",
-			"path": "github.com/reconquest/hierr-go",
-			"revision": "7d09c0176fd2bb7fd71a4349d1253eef9edb2c5c",
-			"revisionTime": "2017-08-24T21:38:38Z"
-		},
-		{
 			"checksumSHA1": "Qa81+aknC3p8dslfUIEud30fXmc=",
 			"path": "github.com/reconquest/ser-go",
 			"revision": "47f084a1e4a5433ac3d6ab6cfe8c1e30028a4d76",

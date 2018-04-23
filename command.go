@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/mattn/go-shellwords"
-	"github.com/reconquest/hierr-go"
+	"github.com/zte-opensource/ceph-boot/hierr"
 )
 
 type RawCommand struct {

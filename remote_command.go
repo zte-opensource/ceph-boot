@@ -5,7 +5,7 @@ import (
 	"golang.org/x/crypto/ssh"
 	"io"
 
-	"github.com/reconquest/hierr-go"
+	"github.com/zte-opensource/ceph-boot/hierr"
 	"github.com/zte-opensource/runcmd"
 )
 

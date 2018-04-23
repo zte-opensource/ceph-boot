@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/reconquest/hierr-go"
+	"github.com/zte-opensource/ceph-boot/hierr"
 	"github.com/zte-opensource/ceph-boot/log"
 	"github.com/zte-opensource/ceph-boot/writer"
 )

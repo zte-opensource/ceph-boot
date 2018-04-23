@@ -3,14 +3,14 @@ package main
 import (
 	"fmt"
 	"io"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/reconquest/hierr-go"
+	"github.com/zte-opensource/ceph-boot/hierr"
 	"github.com/zte-opensource/ceph-boot/log"
 	"github.com/zte-opensource/ceph-boot/writer"
-	"reflect"
 )
 
 type ClusterConfig struct {

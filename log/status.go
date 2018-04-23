@@ -5,8 +5,8 @@ import (
 	"sync"
 
 	"github.com/reconquest/barely"
-	"github.com/reconquest/hierr-go"
 	"github.com/zte-opensource/ceph-boot/color"
+	"github.com/zte-opensource/ceph-boot/hierr"
 )
 
 func SetupLogger(verbose verbosity) error {

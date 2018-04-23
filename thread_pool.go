@@ -3,7 +3,7 @@ package main
 import (
 	"strconv"
 
-	"github.com/reconquest/hierr-go"
+	"github.com/zte-opensource/ceph-boot/hierr"
 )
 
 type threadPool struct {

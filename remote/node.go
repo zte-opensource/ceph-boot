@@ -11,6 +11,7 @@ import (
 
 	"github.com/zte-opensource/ceph-boot/hierr"
 	"github.com/zte-opensource/ceph-boot/log"
+	"github.com/zte-opensource/ceph-boot/writer"
 	"github.com/zte-opensource/runcmd"
 )
 
@@ -52,7 +53,7 @@ func (node *Node) Lock(filename string) error {
 		),
 	}
 
-	log.Traceln(hierr.Errorf(
+	log.Debugln(hierr.Errorf(
 		lockCommandLine,
 		`%s running lock command`,
 		node,
@@ -118,7 +119,7 @@ func (node *Node) Lock(filename string) error {
 		)
 	}
 
-	log.Tracef(`lock acquired: '%s' on '%s'`, node, filename)
+	log.Debugf(`lock acquired: '%s' on '%s'`, node, filename)
 
 	node.hbio = &heartbeatIO{
 		stdin:  stdin,
@@ -158,7 +159,7 @@ func (node *Node) Heartbeat(
 		<-abort
 
 		if remote, ok := node.runner.(*runcmd.Remote); ok {
-			log.Tracef("%s closing connection", node.String())
+			log.Debugf("%s closing connection", node.String())
 			err := remote.CloseConnection()
 			if err != nil {
 				log.Warningf(
@@ -227,12 +228,12 @@ func (node *Node) Heartbeat(
 			finish(2)
 		}
 
-		log.Tracef(`%s heartbeat`, node.String())
+		log.Debugf(`%s heartbeat`, node.String())
 	}
 }
 
 func (node *Node) Connect(runnerFactory RunnerFactory) error {
-	log.Tracef(`connecting to address: '%s'`, node.address)
+	log.Debugf(`connecting to address: '%s'`, node.address)
 
 	done := make(chan struct{}, 0)
 
@@ -270,4 +271,74 @@ func (node *Node) Connect(runnerFactory RunnerFactory) error {
 	node.runner = runner
 
 	return nil
+}
+
+func (node *Node) Run(
+	c *Command,
+	logLock sync.Locker,
+	outputLock sync.Locker,
+) error {
+	if err := c.escapeCommand(); err != nil {
+		return err
+	}
+
+	worker := node.runner.Command(c.EscapedCommand[0], c.EscapedCommand[1:]...)
+
+	stdoutBackend := io.Writer(os.Stdout)
+	stderrBackend := io.Writer(os.Stderr)
+
+	var stdout io.WriteCloser
+	var stderr io.WriteCloser
+
+	prefix := fmt.Sprintf("[%s] -> ", node.address.Domain)
+
+	stdout = writer.NewLineFlushWriteCloser(
+		writer.NewPrefixWriteCloser(
+			writer.NewNopWriteCloser(stdoutBackend),
+			prefix,
+		),
+		logLock,
+		true,
+	)
+	stderr = writer.NewLineFlushWriteCloser(
+		writer.NewPrefixWriteCloser(
+			writer.NewNopWriteCloser(stderrBackend),
+			prefix,
+		),
+		logLock,
+		true,
+	)
+
+	stdout = log.NewStatusBarWriteCloser(stdout)
+	stderr = log.NewStatusBarWriteCloser(stderr)
+
+	// node level stdout/stderr lock
+	if outputLock != (*sync.Mutex)(nil) {
+		sharedLock := writer.NewSharedLock(outputLock, 2)
+
+		stdout = writer.NewLockedWriter(stdout, sharedLock)
+		stderr = writer.NewLockedWriter(stderr, sharedLock)
+	}
+
+	stdin, err := worker.StdinPipe()
+	if err != nil {
+		return hierr.Errorf(
+			err,
+			`can't get stdin from remote command`,
+		)
+	}
+
+	worker.SetStdout(stdout)
+	worker.SetStderr(stderr)
+
+	c.Node = node
+	c.worker = worker
+
+	c.Stdin = stdin
+	c.Stdout = stdout
+	c.Stderr = stderr
+
+	err = worker.Start()
+
+	return err
 }

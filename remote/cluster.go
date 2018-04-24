@@ -194,7 +194,7 @@ func (cluster *Cluster) RunCommand(
 	for _, node := range cluster.Nodes {
 		go func(node *Node) {
 			pool.Run(func() {
-				log.Tracef(
+				log.Debugf(
 					"%s",
 					hierr.Errorf(
 						c.EscapedCommand,
@@ -203,12 +203,7 @@ func (cluster *Cluster) RunCommand(
 					).Error(),
 				)
 
-				prefix := ""
-				if log.Conf.Verbose != log.VerbosityQuiet {
-					prefix = node.address.Domain + " "
-				}
-
-				err := c.Run(node, prefix, logLock, outputLock)
+				err := node.Run(c, logLock, outputLock)
 				if err != nil {
 					errors <- &nodeErr{err, node}
 
@@ -258,7 +253,7 @@ func (cluster *Cluster) RunCommand(
 }
 
 func (cluster *Cluster) Wait() error {
-	log.Tracef(`waiting %d nodes to finish`, len(cluster.Execution))
+	log.Debugf(`waiting %d nodes to finish`, len(cluster.Execution))
 
 	results := make(chan *CommandResult, 0)
 	for _, c := range cluster.Execution {
@@ -304,7 +299,7 @@ func (cluster *Cluster) Wait() error {
 			stat.Fails++
 			stat.Total--
 
-			log.Tracef(
+			log.Debugf(
 				`%s finished with exit code: '%d'`,
 				result.C.Node,
 				result.C.ExitCode,
@@ -315,7 +310,7 @@ func (cluster *Cluster) Wait() error {
 
 		stat.Success++
 
-		log.Tracef(
+		log.Debugf(
 			`%s has successfully finished execution`,
 			result.C.Node,
 		)

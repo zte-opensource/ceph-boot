@@ -25,11 +25,7 @@ func StartArchiveReceivers(
 	serial bool,
 ) error {
 	command := []string{
-		"mkdir", "-p", rootDir, "&&", "tar", "--directory", rootDir, "-x",
-	}
-
-	if log.Conf.Verbose >= log.VerbosityDebug {
-		command = append(command, `--verbose`)
+		"mkdir", "-p", rootDir, "&&", "tar", "-C", rootDir, "--verbose", "-x",
 	}
 
 	c, err := New("", sudo, defaultRemoteExecutionShell, command, nil)
@@ -124,7 +120,7 @@ func ArchiveFilesToWriter(
 		stat.Success++
 	}
 
-	log.Tracef("closing archive stream, %d files sent", len(files))
+	log.Debugf("closing archive stream, %d files sent", len(files))
 
 	err = archiveWriter.Close()
 	if err != nil {
@@ -192,7 +188,7 @@ func writeFileToArchive(
 		header.Gid = int(fileInfo.Sys().(*syscall.Stat_t).Gid)
 	}
 
-	log.Tracef(
+	log.Debugf(
 		hierr.Errorf(
 			fmt.Sprintf(
 				"size: %d bytes; mode: %o; uid/gid: %d/%d; modtime: %s",

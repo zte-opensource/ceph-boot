@@ -228,15 +228,15 @@ func realMain(args map[string]interface{}) error {
 		return hierr.Errorf(err, "can't parse threads count")
 	}
 
-	verbose := log.VerbosityNormal
+	verbose := log.VerbosityWarn
 	if quiet {
 		verbose = log.VerbosityQuiet
 	}
 	if level == 1 {
-		verbose = log.VerbosityDebug
+		verbose = log.VerbosityInfo
 	}
 	if level > 1 {
-		verbose = log.VerbosityTrace
+		verbose = log.VerbosityDebug
 	}
 
 	switch {
@@ -578,7 +578,7 @@ func handleSynchronize(args map[string]interface{}, pool *remote.ThreadPool) err
 	}
 
 	log.Debugf(`file list contains %d files`, len(filesList))
-	log.Tracef(`files to upload: %+v`, filesList)
+	log.Debugf(`files to upload: %+v`, filesList)
 
 	log.Debugf(`file upload started into: '%s'`, rootDir)
 
@@ -604,7 +604,7 @@ func handleSynchronize(args map[string]interface{}, pool *remote.ThreadPool) err
 		)
 	}
 
-	log.Tracef(`waiting file upload to finish`)
+	log.Debugf(`waiting file upload to finish`)
 
 	err = cluster.Stdin.Close()
 	if err != nil {
@@ -622,13 +622,13 @@ func handleSynchronize(args map[string]interface{}, pool *remote.ThreadPool) err
 		)
 	}
 
-	log.Tracef(`upload done`)
+	log.Debugf(`upload done`)
 
 	if uploadOnly {
 		return nil
 	}
 
-	log.Tracef(`starting sync tool`)
+	log.Debugf(`starting sync tool`)
 
 	commandline, err := shellwords.NewParser().Parse(commandString)
 	if err != nil {

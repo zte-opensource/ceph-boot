@@ -9,22 +9,16 @@
 			"revisionTime": "2018-01-11T23:17:33Z"
 		},
 		{
-			"checksumSHA1": "PJkEV6Mt7MFGszBi2DCD4y4bWqo=",
-			"path": "github.com/kovetskiy/lorg",
-			"revision": "b2c9710020e731cb5a520e514edbfa3bacaa3cb3",
-			"revisionTime": "2017-12-21T12:27:03Z"
-		},
-		{
 			"checksumSHA1": "F4vVtBazK4fxatFQ0xvJrKLpXxo=",
 			"path": "github.com/mattn/go-shellwords",
 			"revision": "39dbbfa24bbc39559b61cae9b20b0e8db0e55525",
 			"revisionTime": "2018-02-01T00:47:52Z"
 		},
 		{
-			"checksumSHA1": "+qHaqo0xD6gCdT8v+EN5gf4VJMs=",
-			"path": "github.com/zazab/zhash",
-			"revision": "ad45b89afe7af57319ca32f174e4dabeb00c44e4",
-			"revisionTime": "2017-04-03T03:24:15Z"
+			"checksumSHA1": "9ZSqjmvF/JE6Qj/5xOoCAmUgXz8=",
+			"path": "github.com/sirupsen/logrus",
+			"revision": "778f2e774c725116edbc3d039dc0dfc1cc62aae8",
+			"revisionTime": "2018-03-29T22:59:52Z"
 		},
 		{
 			"checksumSHA1": "nZzkl0ruoZUK5M0A9YHj018Qyf4=",

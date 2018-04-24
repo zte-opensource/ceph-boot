@@ -4,46 +4,62 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/kovetskiy/lorg"
+	log "github.com/sirupsen/logrus"
+)
+
+type (
+	verbosity int
+)
+
+const (
+	VerbosityQuiet verbosity = iota
+	VerbosityFatal
+	VerbosityError
+	VerbosityWarn
+	VerbosityInfo
+	VerbosityDebug
 )
 
 var (
-	Logger = lorg.NewLog()
+	logger *log.Logger
 )
 
-func SetLoggerVerbosity(v verbosity) {
-	Conf.Verbose = v
+func init() {
+	formatter := &log.TextFormatter{
+		FullTimestamp:          true,
+		DisableLevelTruncation: true,
+	}
 
-	Logger.SetLevel(lorg.LevelWarning)
-
-	switch {
-	case v >= VerbosityTrace:
-		Logger.SetLevel(lorg.LevelTrace)
-
-	case v >= VerbosityDebug:
-		Logger.SetLevel(lorg.LevelDebug)
-
-	case v >= VerbosityNormal:
-		Logger.SetLevel(lorg.LevelInfo)
+	logger = &log.Logger{
+		Out:       os.Stderr,
+		Formatter: formatter,
+		Hooks:     make(log.LevelHooks),
+		Level:     log.WarnLevel,
 	}
 }
 
-func Tracef(format string, args ...interface{}) {
-	args = serializeErrors(args)
+func SetupLogger(v verbosity) error {
+	logger.SetLevel(log.WarnLevel)
+	switch {
+	case v >= VerbosityDebug:
+		logger.SetLevel(log.DebugLevel)
+	case v >= VerbosityInfo:
+		logger.SetLevel(log.InfoLevel)
+	case v >= VerbosityWarn:
+		logger.SetLevel(log.WarnLevel)
+	case v >= VerbosityError:
+		logger.SetLevel(log.ErrorLevel)
+	case v >= VerbosityFatal:
+		logger.SetLevel(log.FatalLevel)
+	}
 
-	Logger.Tracef(`%s`, fmt.Sprintf(format, args...))
-
-	DrawStatus()
-}
-
-func Traceln(args ...interface{}) {
-	Tracef("%s", fmt.Sprint(serializeErrors(args)...))
+	return nil
 }
 
 func Debugf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	Logger.Debugf(`%s`, fmt.Sprintf(format, args...))
+	logger.Debugf(`%s`, fmt.Sprintf(format, args...))
 
 	DrawStatus()
 }
@@ -55,7 +71,7 @@ func Debugln(args ...interface{}) {
 func Infof(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	Logger.Infof(`%s`, fmt.Sprintf(format, args...))
+	logger.Infof(`%s`, fmt.Sprintf(format, args...))
 
 	DrawStatus()
 }
@@ -67,7 +83,7 @@ func Infoln(args ...interface{}) {
 func Warningf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	Logger.Warningf(`%s`, fmt.Sprintf(format, args...))
+	logger.Warningf(`%s`, fmt.Sprintf(format, args...))
 
 	DrawStatus()
 }
@@ -79,7 +95,7 @@ func Warningln(args ...interface{}) {
 func Errorf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	Logger.Errorf(`%s`, fmt.Sprintf(format, args...))
+	logger.Errorf(`%s`, fmt.Sprintf(format, args...))
 }
 
 func Errorln(args ...interface{}) {
@@ -89,7 +105,7 @@ func Errorln(args ...interface{}) {
 func Fatalf(format string, args ...interface{}) {
 	args = serializeErrors(args)
 
-	Logger.Fatalf(`%s`, fmt.Sprintf(format, args...))
+	logger.Fatalf(`%s`, fmt.Sprintf(format, args...))
 
 	os.Exit(1)
 }

@@ -1,6 +1,7 @@
 package log
 
 import (
+	"io"
 	"os"
 	"sync"
 
@@ -9,12 +10,12 @@ import (
 	"github.com/zte-opensource/ceph-boot/statusbar"
 )
 
-func SetupLogger(verbose verbosity) error {
-	Logger.SetIndentLines(true)
+var (
+	statusBar *statusbar.StatusBar
+)
 
-	SetLoggerVerbosity(verbose)
-
-	return nil
+type StatusBarWriteCloser struct {
+	writer io.WriteCloser
 }
 
 func SetupStatusBar(theme string) error {
@@ -81,4 +82,24 @@ func ClearStatus() {
 	}
 
 	statusBar.Clear(os.Stderr)
+}
+
+func NewStatusBarWriteCloser(w io.WriteCloser) *StatusBarWriteCloser {
+	return &StatusBarWriteCloser{
+		w,
+	}
+}
+
+func (w *StatusBarWriteCloser) Write(data []byte) (int, error) {
+	ClearStatus()
+
+	written, err := w.writer.Write(data)
+
+	DrawStatus()
+
+	return written, err
+}
+
+func (w *StatusBarWriteCloser) Close() error {
+	return w.writer.Close()
 }

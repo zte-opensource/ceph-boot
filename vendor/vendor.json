@@ -9,6 +9,12 @@
 			"revisionTime": "2018-01-11T23:17:33Z"
 		},
 		{
+			"checksumSHA1": "40vJyUB4ezQSn/NSadsKEOrudMc=",
+			"path": "github.com/inconshreveable/mousetrap",
+			"revision": "76626ae9c91c4f2a10f34cad8ce83ea42c93bb75",
+			"revisionTime": "2014-10-17T20:07:13Z"
+		},
+		{
 			"checksumSHA1": "F4vVtBazK4fxatFQ0xvJrKLpXxo=",
 			"path": "github.com/mattn/go-shellwords",
 			"revision": "39dbbfa24bbc39559b61cae9b20b0e8db0e55525",
@@ -19,6 +25,18 @@
 			"path": "github.com/sirupsen/logrus",
 			"revision": "778f2e774c725116edbc3d039dc0dfc1cc62aae8",
 			"revisionTime": "2018-03-29T22:59:52Z"
+		},
+		{
+			"checksumSHA1": "/7nJGKk93PHyCjnqXOtTNy2K4SM=",
+			"path": "github.com/spf13/cobra",
+			"revision": "7ee208b09f12c42bb7f5b0e14cd071706ee17993",
+			"revisionTime": "2018-04-23T12:47:20Z"
+		},
+		{
+			"checksumSHA1": "k5TsfhX2vvfffYbZQ4fMKtL5+cA=",
+			"path": "github.com/spf13/pflag",
+			"revision": "583c0c0531f06d5278b7d917446061adc344b5cd",
+			"revisionTime": "2018-04-12T12:09:13Z"
 		}
 	],
 	"rootPath": "github.com/zte-opensource/ceph-boot"

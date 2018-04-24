@@ -28,7 +28,7 @@ func StartArchiveReceivers(
 		"mkdir", "-p", rootDir, "&&", "tar", "-C", rootDir, "--verbose", "-x",
 	}
 
-	c, err := New("", sudo, defaultRemoteExecutionShell, command, nil)
+	c, err := New(sudo, defaultRemoteExecutionShell, command, nil)
 	if err != nil {
 		return hierr.Errorf(
 			err,

@@ -271,11 +271,10 @@ func realMain(args map[string]interface{}) error {
 
 func handleEvaluate(args map[string]interface{}, pool *remote.ThreadPool) error {
 	var (
-		stdin, _   = args["--stdin"].(string)
-		rootDir, _ = args["--root"].(string)
-		sudo       = args["--sudo"].(bool)
-		shell      = args["--shell"].(string)
-		serial     = args["--serial"].(bool)
+		stdin, _ = args["--stdin"].(string)
+		sudo     = args["--sudo"].(bool)
+		shell    = args["--shell"].(string)
+		serial   = args["--serial"].(bool)
 
 		commandline = args["<command>"].([]string)
 
@@ -328,11 +327,7 @@ func handleEvaluate(args map[string]interface{}, pool *remote.ThreadPool) error 
 	log.Debugf(`connecting to %d nodes`, len(addresses))
 
 	if lockFile == "" {
-		if rootDir == "" {
-			lockFile = defaultLockFile
-		} else {
-			lockFile = rootDir
-		}
+		lockFile = defaultLockFile
 	}
 
 	heartbeatMillisecondsBase, err := strconv.Atoi(sendTimeout)
@@ -374,7 +369,6 @@ func handleEvaluate(args map[string]interface{}, pool *remote.ThreadPool) error 
 	}
 
 	c, err := remote.New(
-		rootDir,
 		sudo,
 		shell,
 		commandline,
@@ -513,11 +507,7 @@ func handleSynchronize(args map[string]interface{}, pool *remote.ThreadPool) err
 	log.Debugf(`connecting to %d nodes`, len(addresses))
 
 	if lockFile == "" {
-		if rootDir == "" {
-			lockFile = defaultLockFile
-		} else {
-			lockFile = rootDir
-		}
+		lockFile = defaultLockFile
 	}
 
 	heartbeatMillisecondsBase, err := strconv.Atoi(sendTimeout)
@@ -639,7 +629,7 @@ func handleSynchronize(args map[string]interface{}, pool *remote.ThreadPool) err
 		)
 	}
 
-	c, err := remote.New(rootDir, sudo, shell, commandline, commandArgs)
+	c, err := remote.New(sudo, shell, commandline, commandArgs)
 	if err != nil {
 		return hierr.Errorf(
 			err,

@@ -11,11 +11,10 @@ import (
 )
 
 type Command struct {
-	directory string
-	shell     string
-	sudo      bool
-	command   []string
-	args      []string
+	sudo    bool
+	shell   string
+	command []string
+	args    []string
 
 	EscapedCommand []string
 }
@@ -43,18 +42,16 @@ var (
 )
 
 func New(
-	directory string,
 	sudo bool,
 	shell string,
 	command []string,
 	args []string,
 ) (*Command, error) {
 	c := &Command{
-		directory: directory,
-		sudo:      sudo,
-		shell:     shell,
-		command:   command,
-		args:      args,
+		sudo:    sudo,
+		shell:   shell,
+		command: command,
+		args:    args,
 	}
 
 	if err := c.escapeCommand(); err != nil {
@@ -66,13 +63,6 @@ func New(
 
 func (c *Command) escapeCommand() error {
 	commandLine := joinCommand(c.command)
-
-	if c.directory != "" {
-		commandLine = fmt.Sprintf("cd %s && { %s; }",
-			escapeCommandArgumentStrict(c.directory),
-			commandLine,
-		)
-	}
 
 	if len(c.shell) != 0 {
 		commandLine = wrapCommandIntoShell(

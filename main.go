@@ -392,7 +392,7 @@ func handleEvaluate(args map[string]interface{}, pool *remote.ThreadPool) error 
 		return hierr.Errorf(
 			err,
 			`can't run remote execution on %d nodes`,
-			len(cluster.Execution),
+			len(cluster.Nodes),
 		)
 	}
 
@@ -652,7 +652,7 @@ func handleSynchronize(args map[string]interface{}, pool *remote.ThreadPool) err
 		return hierr.Errorf(
 			err,
 			`can't run remote execution on %d nodes`,
-			len(cluster.Execution),
+			len(cluster.Nodes),
 		)
 	}
 

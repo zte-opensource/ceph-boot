@@ -18,7 +18,7 @@ type Cluster struct {
 	Nodes []*Node
 	Stdin io.WriteCloser
 
-	Execution []*Command
+	executions []*CommandExecution
 }
 
 func NewCluster(config Config) *Cluster {
@@ -159,15 +159,10 @@ func (cluster *Cluster) RunCommand(
 		logLock    = &sync.Mutex{}
 		stdinsLock = &sync.Mutex{}
 		outputLock = &sync.Mutex{}
+		cmdsLock   = &sync.Mutex{}
 
 		pool = cluster.config.Pool
-	)
 
-	if !serial {
-		outputLock = nil
-	}
-
-	var (
 		stat = &struct {
 			sync.Mutex
 
@@ -183,13 +178,16 @@ func (cluster *Cluster) RunCommand(
 
 	log.SetStatus(stat)
 
+	if !serial {
+		outputLock = nil
+	}
+
 	type nodeErr struct {
 		err  error
 		node *Node
 	}
 
 	errors := make(chan *nodeErr, 0)
-	executionLock := &sync.Mutex{}
 
 	for _, node := range cluster.Nodes {
 		go func(node *Node) {
@@ -203,7 +201,7 @@ func (cluster *Cluster) RunCommand(
 					).Error(),
 				)
 
-				err := node.Run(c, logLock, outputLock)
+				e, err := node.Run(c, logLock, outputLock)
 				if err != nil {
 					errors <- &nodeErr{err, node}
 
@@ -216,15 +214,15 @@ func (cluster *Cluster) RunCommand(
 					return
 				}
 
-				executionLock.Lock()
-				defer executionLock.Unlock()
+				cmdsLock.Lock()
+				defer cmdsLock.Unlock()
 
-				cluster.Execution = append(cluster.Execution, c)
+				cluster.executions = append(cluster.executions, e)
 
 				stdinsLock.Lock()
 				defer stdinsLock.Unlock()
 
-				stdins = append(stdins, c.Stdin)
+				stdins = append(stdins, e.Stdin)
 
 				stat.Lock()
 				defer stat.Unlock()
@@ -253,13 +251,13 @@ func (cluster *Cluster) RunCommand(
 }
 
 func (cluster *Cluster) Wait() error {
-	log.Debugf(`waiting %d nodes to finish`, len(cluster.Execution))
+	log.Debugf(`waiting %d nodes to finish`, len(cluster.Nodes))
 
 	results := make(chan *CommandResult, 0)
-	for _, c := range cluster.Execution {
-		go func(c *Command) {
-			results <- &CommandResult{c, c.Wait()}
-		}(c)
+	for _, e := range cluster.executions {
+		go func(e *CommandExecution) {
+			results <- &CommandResult{e, e.Wait()}
+		}(e)
 	}
 
 	executionErrors := fmt.Errorf(
@@ -274,7 +272,7 @@ func (cluster *Cluster) Wait() error {
 			Success int
 		}{
 			Phase: `wait`,
-			Total: len(cluster.Execution),
+			Total: len(cluster.Nodes),
 		}
 
 		exitCodes = map[int]int{}
@@ -282,17 +280,17 @@ func (cluster *Cluster) Wait() error {
 
 	log.SetStatus(stat)
 
-	for range cluster.Execution {
+	for range cluster.Nodes {
 		result := <-results
-		if result.Err != nil {
-			exitCodes[result.C.ExitCode]++
+		if result.err != nil {
+			exitCodes[result.execution.ExitCode]++
 
 			executionErrors = hierr.Push(
 				executionErrors,
 				hierr.Errorf(
-					result.Err,
+					result.err,
 					`%s has finished with error`,
-					result.C.Node,
+					result.execution.Node.String(),
 				),
 			)
 
@@ -301,8 +299,8 @@ func (cluster *Cluster) Wait() error {
 
 			log.Debugf(
 				`%s finished with exit code: '%d'`,
-				result.C.Node,
-				result.C.ExitCode,
+				result.execution.Node.String(),
+				result.execution.ExitCode,
 			)
 
 			continue
@@ -312,17 +310,17 @@ func (cluster *Cluster) Wait() error {
 
 		log.Debugf(
 			`%s has successfully finished execution`,
-			result.C.Node,
+			result.execution.Node.String(),
 		)
 	}
 
 	if stat.Fails > 0 {
-		if stat.Fails == len(cluster.Execution) {
+		if stat.Fails == len(cluster.Nodes) {
 			exitCodesValue := reflect.ValueOf(exitCodes)
 
 			topError := fmt.Errorf(
 				`commands are failed on all %d nodes`,
-				len(cluster.Execution),
+				len(cluster.Nodes),
 			)
 
 			for _, key := range exitCodesValue.MapKeys() {
@@ -343,7 +341,7 @@ func (cluster *Cluster) Wait() error {
 			executionErrors,
 			`commands are failed on %d out of %d nodes`,
 			stat.Fails,
-			len(cluster.Execution),
+			len(cluster.Nodes),
 		)
 	}
 

@@ -277,11 +277,7 @@ func (node *Node) Run(
 	c *Command,
 	logLock sync.Locker,
 	outputLock sync.Locker,
-) error {
-	if err := c.escapeCommand(); err != nil {
-		return err
-	}
-
+) (*CommandExecution, error) {
 	worker := node.runner.Command(c.EscapedCommand[0], c.EscapedCommand[1:]...)
 
 	stdoutBackend := io.Writer(os.Stdout)
@@ -290,7 +286,7 @@ func (node *Node) Run(
 	var stdout io.WriteCloser
 	var stderr io.WriteCloser
 
-	prefix := fmt.Sprintf("[%s] -> ", node.address.Domain)
+	prefix := fmt.Sprintf("[%s] ", node.address.Domain)
 
 	stdout = writer.NewLineFlushWriteCloser(
 		writer.NewPrefixWriteCloser(
@@ -322,7 +318,7 @@ func (node *Node) Run(
 
 	stdin, err := worker.StdinPipe()
 	if err != nil {
-		return hierr.Errorf(
+		return nil, hierr.Errorf(
 			err,
 			`can't get stdin from remote command`,
 		)
@@ -331,14 +327,16 @@ func (node *Node) Run(
 	worker.SetStdout(stdout)
 	worker.SetStderr(stderr)
 
-	c.Node = node
-	c.worker = worker
-
-	c.Stdin = stdin
-	c.Stdout = stdout
-	c.Stderr = stderr
+	e := &CommandExecution{
+		C:      c,
+		Node:   node,
+		worker: worker,
+		Stdin:  stdin,
+		Stdout: stdout,
+		Stderr: stderr,
+	}
 
 	err = worker.Start()
 
-	return err
+	return e, err
 }

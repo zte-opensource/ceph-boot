@@ -18,6 +18,10 @@ type Command struct {
 	args      []string
 
 	EscapedCommand []string
+}
+
+type CommandExecution struct {
+	C *Command
 
 	Node   *Node
 	worker runcmd.CmdWorker
@@ -30,9 +34,8 @@ type Command struct {
 }
 
 type CommandResult struct {
-	C *Command
-
-	Err error
+	execution *CommandExecution
+	err       error
 }
 
 var (
@@ -96,44 +99,44 @@ func (c *Command) escapeCommand() error {
 	return nil
 }
 
-func (c *Command) Wait() error {
-	err := c.worker.Wait()
+func (e *CommandExecution) Wait() error {
+	err := e.worker.Wait()
 	if err != nil {
-		_ = c.Stdout.Close()
-		_ = c.Stderr.Close()
+		_ = e.Stdout.Close()
+		_ = e.Stderr.Close()
 		if sshErrors, ok := err.(*ssh.ExitError); ok {
-			c.ExitCode = sshErrors.Waitmsg.ExitStatus()
+			e.ExitCode = sshErrors.Waitmsg.ExitStatus()
 
 			return fmt.Errorf(
 				`%s had failed to evaluate command, `+
 					`remote command exited with non-zero code: %d`,
-				c.Node.String(),
-				c.ExitCode,
+				e.Node.String(),
+				e.ExitCode,
 			)
 		}
 
 		return hierr.Errorf(
 			err,
 			`%s failed to finish execution, unexpected error`,
-			c.Node.String(),
+			e.Node.String(),
 		)
 	}
 
-	err = c.Stdout.Close()
+	err = e.Stdout.Close()
 	if err != nil {
 		return hierr.Errorf(
 			err,
 			`%s can't close stdout`,
-			c.Node.String(),
+			e.Node.String(),
 		)
 	}
 
-	err = c.Stderr.Close()
+	err = e.Stderr.Close()
 	if err != nil {
 		return hierr.Errorf(
 			err,
 			`%s can't close stderr`,
-			c.Node.String(),
+			e.Node.String(),
 		)
 	}
 

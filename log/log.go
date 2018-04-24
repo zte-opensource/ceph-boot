@@ -8,11 +8,11 @@ import (
 )
 
 type (
-	verbosity int
+	Verbosity int
 )
 
 const (
-	VerbosityQuiet verbosity = iota
+	VerbosityQuiet Verbosity = iota
 	VerbosityFatal
 	VerbosityError
 	VerbosityWarn
@@ -38,7 +38,7 @@ func init() {
 	}
 }
 
-func SetupLogger(v verbosity) error {
+func SetupLogger(v Verbosity) error {
 	logger.SetLevel(log.WarnLevel)
 	switch {
 	case v >= VerbosityDebug:

@@ -234,7 +234,7 @@ func writeFileToArchive(
 	return nil
 }
 
-func GetFilesList(relative bool, sources ...string) ([]File, error) {
+func GetFilesList(sources ...string) ([]File, error) {
 	var files []File
 
 	for _, source := range sources {
@@ -247,17 +247,6 @@ func GetFilesList(relative bool, sources ...string) ([]File, error) {
 
 				if info.IsDir() {
 					return nil
-				}
-
-				if !relative {
-					path, err = filepath.Abs(path)
-					if err != nil {
-						return hierr.Errorf(
-							err,
-							`can't get absolute path for local file: '%s'`,
-							path,
-						)
-					}
 				}
 
 				files = append(files, File{

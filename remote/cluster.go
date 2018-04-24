@@ -38,9 +38,6 @@ func (cluster *Cluster) Connect(
 	pool := config.Pool
 	addresses := config.Addresses
 	lockFile := config.LockFile
-	noLock := config.NoLock
-	noLockFail := config.NoLockFail
-	noConnFail := config.NoConnFail
 	hbInterval := config.HbInterval
 	hbCancelCond := config.HbCancelCond
 
@@ -57,17 +54,11 @@ func (cluster *Cluster) Connect(
 		Total: int64(len(addresses)),
 	}
 
-	if noLock {
-		stat.Phase = `connect`
-	}
-
 	log.SetStatus(stat)
 
 	for _, nodeAddress := range addresses {
 		go func(nodeAddress Address) {
 			pool.Run(func() {
-				failed := false
-
 				node := NewNode(nodeAddress)
 
 				err := node.Connect(runnerFactory)
@@ -75,40 +66,26 @@ func (cluster *Cluster) Connect(
 					atomic.AddInt64(&stat.Fails, 1)
 					atomic.AddInt64(&stat.Total, -1)
 
-					if noConnFail {
-						failed = true
-						log.Warningln(err)
-					} else {
+					errors <- err
+					return
+				} else {
+					err = node.Lock(lockFile)
+					if err != nil {
 						errors <- err
 						return
-					}
-				} else {
-					if !noLock {
-						err = node.Lock(lockFile)
-						if err != nil {
-							if noLockFail {
-								log.Warningln(err)
-							} else {
-								errors <- err
-								return
-							}
-						} else {
-							go node.Heartbeat(hbInterval, hbCancelCond)
-						}
+					} else {
+						go node.Heartbeat(hbInterval, hbCancelCond)
 					}
 				}
 
 				textStatus := "established"
-				if failed {
-					textStatus = "failed"
-				} else {
-					atomic.AddInt64(&stat.Success, 1)
 
-					nodeAddMutex.Lock()
-					defer nodeAddMutex.Unlock()
+				atomic.AddInt64(&stat.Success, 1)
 
-					cluster.Nodes = append(cluster.Nodes, node)
-				}
+				nodeAddMutex.Lock()
+				defer nodeAddMutex.Unlock()
+
+				cluster.Nodes = append(cluster.Nodes, node)
 
 				log.Debugf(
 					`%4d/%d (%d failed) connection %s: %s`,

@@ -11,8 +11,8 @@ import (
 
 	"github.com/zte-opensource/ceph-boot/hierr"
 	"github.com/zte-opensource/ceph-boot/log"
+	"github.com/zte-opensource/ceph-boot/runcmd"
 	"github.com/zte-opensource/ceph-boot/writer"
-	"github.com/zte-opensource/runcmd"
 )
 
 const (

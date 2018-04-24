@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/reconquest/ser-go"
+	"github.com/zte-opensource/ceph-boot/hierr"
 )
 
 // ExecError represents error messages occured while executing command.
@@ -51,7 +51,7 @@ func (err ExecError) Error() string {
 func run(worker CmdWorker) error {
 	err := worker.Start()
 	if err != nil {
-		return ser.Errorf(
+		return hierr.Errorf(
 			err, "can't exec %q", worker.GetArgs(),
 		)
 	}

@@ -7,7 +7,7 @@ import (
 
 	"github.com/mattn/go-shellwords"
 	"github.com/zte-opensource/ceph-boot/hierr"
-	"github.com/zte-opensource/runcmd"
+	"github.com/zte-opensource/ceph-boot/runcmd"
 )
 
 type Command struct {

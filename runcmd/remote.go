@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/reconquest/ser-go"
-
 	"golang.org/x/crypto/ssh"
 	"golang.org/x/crypto/ssh/agent"
+
+	"github.com/zte-opensource/ceph-boot/hierr"
 )
 
 // RemoteCmd is implementation of CmdWorker interface for remote commands
@@ -340,7 +340,7 @@ func NewRemotePassAuthRunner(user, host, password string) (*Remote, error) {
 func (remote *Remote) Command(name string, arg ...string) CmdWorker {
 	session, err := remote.client.NewSession()
 	if err != nil {
-		err = ser.Errorf(
+		err = hierr.Errorf(
 			err, "can't create ssh session",
 		)
 	}
@@ -396,7 +396,7 @@ func (cmd *RemoteCmd) Wait() (err error) {
 		closeErr := cmd.session.Close()
 		if err == nil && closeErr != nil {
 			if closeErr.Error() != "EOF" {
-				err = ser.Errorf(
+				err = hierr.Errorf(
 					err, "can't close ssh session",
 				)
 			}

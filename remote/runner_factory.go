@@ -3,7 +3,7 @@ package remote
 import (
 	"fmt"
 
-	"github.com/zte-opensource/runcmd"
+	"github.com/zte-opensource/ceph-boot/runcmd"
 )
 
 type (

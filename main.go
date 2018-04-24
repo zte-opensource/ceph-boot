@@ -23,7 +23,7 @@ import (
 	"github.com/zte-opensource/ceph-boot/hierr"
 	"github.com/zte-opensource/ceph-boot/log"
 	"github.com/zte-opensource/ceph-boot/remote"
-	"github.com/zte-opensource/runcmd"
+	"github.com/zte-opensource/ceph-boot/runcmd"
 )
 
 var version = "[manual build]"

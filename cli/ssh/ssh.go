@@ -151,7 +151,7 @@ func run(args []string) error {
 
 	pool = remote.NewThreadPool(parallel)
 
-	commandline := args
+	commandline := args[0]
 
 	canceler := sync.NewCond(&sync.Mutex{})
 
@@ -204,12 +204,7 @@ func run(args []string) error {
 
 	log.Debugf(`global lock acquired on %d nodes`, len(cluster.Nodes))
 
-	c, err := remote.New(
-		sudo,
-		shell,
-		commandline,
-		nil,
-	)
+	c, err := remote.New(sudo, shell, commandline)
 	if err != nil {
 		return hierr.Errorf(
 			err,

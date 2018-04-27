@@ -20,7 +20,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/mattn/go-shellwords"
 	"github.com/zte-opensource/ceph-boot/hierr"
 	"github.com/zte-opensource/ceph-boot/log"
 	"github.com/zte-opensource/ceph-boot/remote"
@@ -162,8 +161,6 @@ func run(args []string) error {
 
 	pool = remote.NewThreadPool(parallel)
 
-	commandline := args
-
 	canceler := sync.NewCond(&sync.Mutex{})
 
 	addresses, err := parseAddresses(inventory, sshDefaultUser, sshDefaultPort)
@@ -277,16 +274,7 @@ func run(args []string) error {
 
 	log.Debugf(`starting sync tool`)
 
-	command, err := shellwords.NewParser().Parse(commandLine)
-	if err != nil {
-		return hierr.Errorf(
-			err,
-			`can't parse sync tool command: '%s'`,
-			commandline,
-		)
-	}
-
-	c, err := remote.New(sudo, shell, commandline, command)
+	c, err := remote.New(sudo, shell, commandLine)
 	if err != nil {
 		return hierr.Errorf(
 			err,

@@ -24,11 +24,9 @@ func StartArchiveReceivers(
 	sudo bool,
 	serial bool,
 ) error {
-	command := []string{
-		"mkdir", "-p", rootDir, "&&", "tar", "-C", rootDir, "--verbose", "-x",
-	}
+	commandLine := fmt.Sprintf("mkdir -p %s && tar -C %s --verbose -x", rootDir, rootDir)
 
-	c, err := New(sudo, defaultRemoteExecutionShell, command, nil)
+	c, err := New(sudo, defaultRemoteExecutionShell, commandLine)
 	if err != nil {
 		return hierr.Errorf(
 			err,
@@ -44,7 +42,7 @@ func StartArchiveReceivers(
 		return hierr.Errorf(
 			err,
 			`can't start tar extraction command: '%v'`,
-			command,
+			commandLine,
 		)
 	}
 

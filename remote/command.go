@@ -2,8 +2,9 @@ package remote
 
 import (
 	"fmt"
-	"golang.org/x/crypto/ssh"
 	"io"
+	"strings"
+	"golang.org/x/crypto/ssh"
 
 	"github.com/mattn/go-shellwords"
 	"github.com/zte-opensource/ceph-boot/hierr"
@@ -13,8 +14,7 @@ import (
 type Command struct {
 	sudo    bool
 	shell   string
-	command []string
-	args    []string
+	command string
 
 	EscapedCommand []string
 }
@@ -41,17 +41,11 @@ var (
 	defaultRemoteExecutionShell = "bash -c '{}'"
 )
 
-func New(
-	sudo bool,
-	shell string,
-	command []string,
-	args []string,
-) (*Command, error) {
+func New(sudo bool, shell string, command string) (*Command, error) {
 	c := &Command{
 		sudo:    sudo,
 		shell:   shell,
 		command: command,
-		args:    args,
 	}
 
 	if err := c.escapeCommand(); err != nil {
@@ -62,19 +56,10 @@ func New(
 }
 
 func (c *Command) escapeCommand() error {
-	commandLine := joinCommand(c.command)
-
-	if len(c.shell) != 0 {
-		commandLine = wrapCommandIntoShell(
-			commandLine,
-			c.shell,
-			c.args,
-		)
-	}
+	commandLine := escapeCommandLine(c.command)
 
 	if c.sudo {
-		sudoCommand := []string{"sudo", "-n", "-E", "-H"}
-		commandLine = joinCommand(sudoCommand) + " " + commandLine
+		commandLine = "sudo -n -E -H " + commandLine
 	}
 
 	command, err := shellwords.Parse(commandLine)
@@ -131,4 +116,13 @@ func (e *CommandExecution) Wait() error {
 	}
 
 	return nil
+}
+
+func escapeCommandLine(commandLine string) string {
+	escaper := strings.NewReplacer(
+		`'`, `'\''`,
+	)
+
+	escaper.Replace(commandLine)
+	return fmt.Sprintf("/bin/bash -c '%s'", commandLine)
 }
